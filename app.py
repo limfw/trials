@@ -245,7 +245,7 @@ else:
     if st.session_state.game_state["message"]:
         st.info(st.session_state.game_state["message"])
         
-    chart_placeholder = st.empty()
+    #chart_placeholder = st.empty()
     df = pd.DataFrame(st.session_state.game_state["history"][-20:])
     fig = go.Figure(go.Candlestick(
         x=df['time'],
