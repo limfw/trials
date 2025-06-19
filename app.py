@@ -89,12 +89,13 @@ def generate_adversarial_candle(last_candle):
     new_close = max(0.01, last_close + change)
 
     return {
-        "time": datetime.now(),
+        "time": last_candle["time"] + pd.Timedelta(minutes=1),  # ← FIXED HERE
         "open": last_close,
         "high": max(last_close, new_close) + abs(np.random.normal(0, 0.1)),
         "low": min(last_close, new_close) - abs(np.random.normal(0, 0.1)),
         "close": new_close
     }
+
 
 def enter_position(position_type):
     if st.session_state.game_state["position"]:
