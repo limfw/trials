@@ -170,7 +170,7 @@ if "game_state" not in st.session_state:
     }
 
 # Game UI
-st.title("Beat the Market AI")
+st.title("Beat the Market AI",unsafe_allow_html=True)
 
 if not st.session_state.game_state["started"]:
     st.markdown("""
