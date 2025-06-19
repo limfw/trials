@@ -181,7 +181,7 @@ if not st.session_state.game_state["started"]:
     
     ---
     
-    ** How the AI Thinks:**
+    **How the AI Thinks:**
     - Detects your move: **Buy / Sell / Alternating**
     - Adjusts the market bias to move **against your current position**
     - The more obvious your pattern, the easier it traps you
