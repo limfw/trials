@@ -67,6 +67,6 @@ This simulation reflects real-world trading environments where:
 * Markets react to visible strategies.
 * Success depends on adaptability, not repetition.
 
-By playing **Beat the Market AI**, users gain insight into the intersection of **pattern recognition, machine-generated deception, and human decision-making** — all in a lightweight, fast-paced environment.
+By playing **Beat the Market AI**, users gain insight into the intersection of **pattern recognition, machine-generated deception, and human decision-making** 
 
 ---
