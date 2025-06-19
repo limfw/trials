@@ -7,25 +7,25 @@ import random
 
 st.set_page_config(page_title="Beat the Market AI", layout="wide")
 
-# ---- CONFIG ----
 CANDLE_INTERVAL = 1.0  # seconds
-TOTAL_TIME = 120       # seconds
-TOTAL_TRIALS = 60      # 1 action every 2 seconds
-WINDOW = 20            # number of candles to show
+TOTAL_TIME = 90        # seconds
+TOTAL_TRIALS = 60
+WINDOW = 20            # candles shown on chart
 
-# ---- SESSION STATE INIT ----
+# Initialize state variables
 if "started" not in st.session_state:
     st.session_state.started = False
-    st.session_state.history = []         # candle history
-    st.session_state.actions = []         # Buy, Hold, Sell
+    st.session_state.history = []
+    st.session_state.actions = []
     st.session_state.score = 0
     st.session_state.start_time = 0
     st.session_state.last_action_time = 0
     st.session_state.predicted_move = None
     st.session_state.trial_count = 0
-    st.session_state.transition_table = {}  # memory for RNN-style prediction
+    st.session_state.transition_table = {}
+    st.session_state.feedback = ""
+    st.session_state.game_over = False
 
-# ---- INIT CHART ----
 def generate_initial_trend(n=20):
     prices = [100]
     for _ in range(n):
@@ -40,7 +40,6 @@ def generate_initial_trend(n=20):
         candles.append({"open": o, "high": h, "low": l, "close": c})
     return candles
 
-# ---- AI CANDLE GENERATOR ----
 def generate_candle(prev_price, predicted_action):
     direction = "up" if predicted_action == "sell" else "down"
     delta = np.random.uniform(0.5, 1.5)
@@ -54,16 +53,14 @@ def generate_candle(prev_price, predicted_action):
     low_p = min(open_p, close_p) - np.random.uniform(0.2, 0.5)
     return {"open": open_p, "high": high_p, "low": low_p, "close": close_p}
 
-# ---- CHART ----
 def plot_chart(data):
     df = pd.DataFrame(data)
     fig = go.Figure(data=[go.Candlestick(x=list(range(len(df))),
                                          open=df["open"], high=df["high"],
-                                         low=df["low"], close=df["close"])])
+                                         low=df["low"], close=df["close"])] )
     fig.update_layout(xaxis_rangeslider_visible=False, height=500)
     st.plotly_chart(fig, use_container_width=True)
 
-# ---- TRANSITION MEMORY ----
 def update_transition_memory(actions):
     if len(actions) < 2:
         return
@@ -82,32 +79,63 @@ def predict_next_action():
             return max(next_moves, key=next_moves.get)
     return random.choice(["buy", "sell"])
 
-# ---- SCORE HANDLER ----
 def handle_action(choice):
+    if st.session_state.game_over:
+        return
+
     st.session_state.actions.append(choice)
     st.session_state.trial_count += 1
     update_transition_memory(st.session_state.actions)
+
     latest = st.session_state.history[-1]
     prev = st.session_state.history[-2]
-    correct = (latest["close"] > prev["close"] and choice == "Buy") or \
-              (latest["close"] < prev["close"] and choice == "Sell")
+    feedback = ""
+
     if choice == "Hold":
-        pass
-    elif correct:
-        st.session_state.score += 1
+        feedback = "You held. No change ➖"
+    elif latest["close"] > prev["close"]:
+        if choice == "Buy":
+            st.session_state.score += 1
+            feedback = "You bought and market went up ✅"
+        else:
+            st.session_state.score -= 1
+            feedback = f"You {choice.lower()}ed, but market went up ❌"
+    elif latest["close"] < prev["close"]:
+        if choice == "Sell":
+            st.session_state.score += 1
+            feedback = "You sold and market went down ✅"
+        else:
+            st.session_state.score -= 1
+            feedback = f"You {choice.lower()}ed, but market went down ❌"
     else:
-        st.session_state.score -= 1
+        feedback = "Market unchanged ➖"
 
-# ---- GAME UI ----
+    st.session_state.feedback = feedback
+
+    if st.session_state.score <= -100:
+        st.session_state.game_over = True
+        st.success("💥 Your wallet is empty! You lost the game.")
+
+# Game UI
 st.title("Beat the Market AI")
-
 if not st.session_state.started:
     st.markdown("""
-    ### Instructions
-    - Game time: 120 seconds
-    - You must take **exactly 60 actions** (one every 2 seconds)
-    - Study the chart, then **Buy / Hold / Sell**
-    - After 30 moves, the AI will try to predict and deceive you!
+### Instructions
+**Beat the Market AI** is a 90 seconds challenge where you play the role of a trader facing an intelligent market.
+- The AI acts as a **market manipulator**. It observes your behavior and tries to **trap you with deceptive price movements**.
+- Your goal is to **make profit** by clicking **Buy**, **Hold**, or **Sell** based on the price chart.
+- After 30 moves, the AI starts predicting your behavior using pattern learning and attempts to **outsmart you**.
+
+#### Gameplay Rules:
+- **Duration:** 90 seconds
+- **Actions:** 60 trials
+- **Wallet Start:** $100
+- **Scoring:**
+  - Correct move: +$1
+  - Wrong move: –$1
+  - Hold: $0
+  - Wallet hits $0: You lose.
+Stay unpredictable. Outsmart the AI. Maximize your profit.
     """)
     if st.button("Start Game"):
         st.session_state.history = generate_initial_trend(n=20)
@@ -117,35 +145,43 @@ if not st.session_state.started:
         st.session_state.start_time = time.time()
         st.session_state.trial_count = 0
         st.session_state.transition_table = {}
+        st.session_state.feedback = ""
+        st.session_state.game_over = False
         st.session_state.last_action_time = time.time()
 else:
     now = time.time()
     elapsed = now - st.session_state.start_time
-    st.write(f"Time left: {int(TOTAL_TIME - elapsed)}s")
-    st.write(f"Score: {st.session_state.score}  |  Trials: {st.session_state.trial_count}/60")
-    plot_chart(st.session_state.history[-WINDOW:])
+    wallet = 100 + st.session_state.score
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("Buy"):
-            handle_action("Buy")
-    with col2:
-        if st.button("Hold"):
-            handle_action("Hold")
-    with col3:
-        if st.button("Sell"):
-            handle_action("Sell")
+    if not st.session_state.game_over:
+        st.write(f"⏱️ Time left: {max(0, int(TOTAL_TIME - elapsed))}s")
+        st.write(f"💰 Wallet: ${wallet}  |  📊 Trials: {st.session_state.trial_count}/60")
+        plot_chart(st.session_state.history[-WINDOW:])
 
-    if now - st.session_state.last_action_time >= CANDLE_INTERVAL:
-        last_price = st.session_state.history[-1]["close"]
-        if st.session_state.trial_count < 30:
-            new_candle = generate_candle(last_price, random.choice(["buy", "sell"]))
-        else:
-            predicted = predict_next_action()
-            new_candle = generate_candle(last_price, predicted)
-        st.session_state.history.append(new_candle)
-        st.session_state.last_action_time = now
+        if st.session_state.feedback:
+            st.info(st.session_state.feedback)
 
-    if elapsed >= TOTAL_TIME or st.session_state.trial_count >= TOTAL_TRIALS:
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("Buy"):
+                handle_action("Buy")
+        with col2:
+            if st.button("Hold"):
+                handle_action("Hold")
+        with col3:
+            if st.button("Sell"):
+                handle_action("Sell")
+
+        if now - st.session_state.last_action_time >= CANDLE_INTERVAL:
+            last_price = st.session_state.history[-1]["close"]
+            if st.session_state.trial_count < 30:
+                new_candle = generate_candle(last_price, random.choice(["buy", "sell"]))
+            else:
+                predicted = predict_next_action()
+                new_candle = generate_candle(last_price, predicted)
+            st.session_state.history.append(new_candle)
+            st.session_state.last_action_time = now
+
+    if elapsed >= TOTAL_TIME or st.session_state.trial_count >= TOTAL_TRIALS or st.session_state.game_over:
+        st.success(f"🎯 Game Over. Final Wallet Balance: ${wallet}")
         st.session_state.started = False
-        st.success(f"Game Over. Final Score: {st.session_state.score}")
