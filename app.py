@@ -254,5 +254,5 @@ else:
     st.sidebar.write(f"Escapes: {st.session_state.game_state['player_success_escapes']}")
 
     if time_left <= 0 or st.session_state.game_state["balance"] <= 0:
-    st.session_state.game_state["is_game_over"] = True
+        st.session_state.game_state["is_game_over"] = True
 
