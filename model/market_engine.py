@@ -1,26 +1,37 @@
 import random
 
 class MarketEngine:
-    def __init__(self):
-        pass
-
-    def get_price_change(self, signal, predicted_action, player_action):
-        base = random.uniform(-1, 1)
+    def generate_candle(self, signal, last_price):
+        base_move = random.uniform(-1.0, 1.0)
         if signal == "fake_breakout":
-            return 2 if predicted_action == "buy" else -2
+            move = abs(base_move) * 1.5
         elif signal == "trap":
-            return -2 if predicted_action == "buy" else 2
+            move = -abs(base_move) * 1.5
         elif signal == "trend":
-            return 1.5 if player_action == "buy" else -1.5
+            move = random.uniform(0.5, 2.0)
         elif signal == "reversal":
-            return -1.5 if player_action == "buy" else 1.5
+            move = -random.uniform(0.5, 2.0)
         else:
-            return base
+            move = base_move
 
-    def get_profit(self, action, price_change):
-        if action == "buy":
-            return price_change
-        elif action == "sell":
-            return -price_change
-        else:
+        open_price = last_price
+        close_price = last_price + move
+        high_price = max(open_price, close_price) + random.uniform(0, 0.5)
+        low_price = min(open_price, close_price) - random.uniform(0, 0.5)
+
+        return {
+            "open": round(open_price, 2),
+            "high": round(high_price, 2),
+            "low": round(low_price, 2),
+            "close": round(close_price, 2),
+        }
+
+    def calculate_score(self, action, price_change):
+        if action == "hold":
             return 0
+        elif action == "buy" and price_change > 0:
+            return 1
+        elif action == "sell" and price_change < 0:
+            return 1
+        else:
+            return -1
