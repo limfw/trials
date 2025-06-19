@@ -5,25 +5,26 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-import random
 import time
-import streamlit.components.v1 as components # Import components
+import random
 
-# Auto-refresh every 1 second
+
 st.set_page_config(page_title="Beat the Market AI", layout="wide")
-st.markdown(
-    """
-    <style>
-    .block-container {
-        padding-top: 1rem;
-        padding-bottom: 1rem;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
 
-st_autorefresh(interval=1000, key="ai_trading_refresh")
+st.markdown("""
+<style>
+.block-container {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+.stButton > button {
+    width: 100%;
+    height: 50px;
+    font-size: 16px;
+    font-weight: bold;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # Game Config
 INITIAL_BALANCE = 100.00
@@ -32,7 +33,20 @@ CANDLE_INTERVAL = 1.0
 MAX_GAME_TIME = 90
 MEMORY_SIZE = 10
 
-# === Utility Functions ===
+# Utility Functions
+
+def decay_weights():
+    for k in st.session_state.game_state["pattern_weights"]:
+        st.session_state.game_state["pattern_weights"][k] *= 0.95  # 5% decay per candle
+
+
+def apply_bias(dominant):
+    # 20% of the time apply a small random bias
+    if random.random() < 0.2:
+        return np.random.uniform(-0.2, 0.2)
+    # otherwise apply standard capped bias
+    return -0.3 if dominant == "buy_sequence" else 0.3
+
 
 def generate_initial_candles(n=20):
     candles = []
@@ -51,16 +65,11 @@ def generate_initial_candles(n=20):
         price = new_price
     return candles
 
+
 def generate_adversarial_candle(last_candle):
     last_close = last_candle["close"]
     base_change = np.random.normal(0, 0.3)
     bias = st.session_state.game_state["market_bias"]
-
-    if st.session_state.game_state["position"]:
-        if st.session_state.game_state["position"] == "long":
-            bias = min(-0.5, bias - 0.3)
-        else: # position == "short"
-            bias = max(0.5, bias + 0.3)
 
     change = base_change + bias
     new_close = max(0.01, last_close + change)
@@ -72,6 +81,7 @@ def generate_adversarial_candle(last_candle):
         "low": min(last_close, new_close) - abs(np.random.normal(0, 0.1)),
         "close": new_close
     }
+
 
 def update_ai_memory(action):
     memory = st.session_state.game_state["action_memory"]
@@ -86,14 +96,12 @@ def update_ai_memory(action):
         elif all(memory[i] != memory[i+1] for i in range(len(memory)-1)):
             weights["alternating"] += 1
 
-    # Determine dominant pattern and set market bias
     dominant = max(weights.items(), key=lambda x: x[1])[0]
-    if dominant == "buy_sequence":
-        st.session_state.game_state["market_bias"] = -0.7 # Punish buying
-    elif dominant == "sell_sequence":
-        st.session_state.game_state["market_bias"] = 0.7  # Punish selling
-    else: # alternating or no clear pattern
-        st.session_state.game_state["market_bias"] = np.random.uniform(-0.3, 0.3) # More neutral/random
+    if dominant in ("buy_sequence", "sell_sequence"):
+        st.session_state.game_state["market_bias"] = apply_bias(dominant)
+    else:
+        st.session_state.game_state["market_bias"] = np.random.uniform(-0.3, 0.3)
+
 
 def enter_position(position_type):
     if st.session_state.game_state["position"]:
@@ -109,6 +117,7 @@ def enter_position(position_type):
     update_ai_memory(position_type)
     st.session_state.game_state["message"] = f"Entered {position_type.upper()} at ${last_candle['close']:.2f}"
 
+
 def close_position():
     if not st.session_state.game_state["position"]:
         st.session_state.game_state["message"] = "No open position!"
@@ -122,10 +131,10 @@ def close_position():
 
     if position_type == "long":
         profit = (exit_price - entry) * TRADE_AMOUNT
-        trap = bias < 0 # Market biased downwards when you are long
-    else: # position_type == "short"
+        trap = bias < 0
+    else:
         profit = (entry - exit_price) * TRADE_AMOUNT
-        trap = bias > 0 # Market biased upwards when you are short
+        trap = bias > 0
 
     st.session_state.game_state["balance"] += profit
     st.session_state.game_state.update({
@@ -142,7 +151,7 @@ def close_position():
     else:
         st.session_state.game_state["message"] = f"Neutral trade result: ${profit:.2f}"
 
-# === Game State Init ===
+# Game State Init
 if "game_state" not in st.session_state:
     st.session_state.game_state = {
         "started": False,
@@ -163,140 +172,204 @@ if "game_state" not in st.session_state:
         },
         "ai_traps_triggered": 0,
         "player_success_escapes": 0,
-        "is_game_over": False
+        "is_game_over": False,
+        "last_update_count": 0
     }
 
-# Initialize scroll key counter if not present
-if "scroll_key_counter" not in st.session_state:
-    st.session_state.scroll_key_counter = 0
+# Initialize empty containers for different sections
+if "containers" not in st.session_state:
+    st.session_state.containers = {}
 
-# Function to keep scroll position
-def scroll_position_keeper():
-    st.session_state.scroll_key_counter += 1
-    js_code = """
-    <script>
-        var mainDiv = window.parent.document.querySelector('.main');
-        if (mainDiv) {
-            // Save scroll position
-            mainDiv.addEventListener('scroll', function() {
-                localStorage.setItem('streamlitScrollPos', mainDiv.scrollTop);
-            });
+# Main title (static - doesn't need updates)
+st.markdown("## Beat the Market AI — Outsmart the Manipulator!")
 
-            // Restore scroll position
-            var savedScrollPos = localStorage.getItem('streamlitScrollPos');
-            if (savedScrollPos) {
-                mainDiv.scrollTop = savedScrollPos;
-                // Optional: Clear after restoring if you want it reset on full new session
-                // localStorage.removeItem('streamlitScrollPos');
-            }
-        }
-    </script>
-    """
-    # REMOVED the 'key' argument from the line below
-    components.html(js_code, height=0, width=0)
+# Auto-refresh with counter
+refresh_count = st_autorefresh(interval=1000, key="ai_trading_refresh")
 
-# === UI ===
-st.markdown("## Biased Market Challenge — Outsmart the AI Manipulator Before It Breaks You!")
+# Only update game state when refresh count changes
+if refresh_count != st.session_state.game_state["last_update_count"]:
+    st.session_state.game_state["last_update_count"] = refresh_count
+    
+    # Update market data
+    if st.session_state.game_state["started"] and not st.session_state.game_state.get("is_game_over", False):
+        now = time.time()
+        if now - st.session_state.game_state["last_candle_time"] >= CANDLE_INTERVAL:
+            decay_weights()  # decay pattern weights each tick
+            new_candle = generate_adversarial_candle(st.session_state.game_state["history"][-1])
+            st.session_state.game_state["history"].append(new_candle)
+            st.session_state.game_state["last_candle_time"] = now
 
+# Game start section
 if not st.session_state.game_state["started"]:
     st.markdown("""
-    ### Instruction
+    ### Instructions
 
-    **Your Mission:**  
+    **Your Mission:**  
     Defeat the **biased market AI**. It watches your trades, learns your patterns, and manipulates prices to trap you. Your goal is to **profit while staying unpredictable**.
 
     **How the AI Thinks:**
-    - Detects your move: **Buy / Sell / Alternating**
-    - Adjusts the market bias to move **against your current position**
+    - Detects your patterns: **Buy / Sell / Alternating**
+    - Adjusts market bias to move **against your current position**
     
-    **How to Win:**  
+    **How to Win:**  
     Escape more traps than you fall into.
     """)
-    if st.button("Start Game"):
+    
+    if st.button("🚀 Start Game", type="primary"):
         st.session_state.game_state.update({
             "started": True,
             "start_time": time.time(),
             "last_candle_time": time.time()
         })
         st.rerun()
+
 else:
-    now = time.time()
-    time_left = max(0, MAX_GAME_TIME - (now - st.session_state.game_state["start_time"]))
-    if not st.session_state.game_state.get("is_game_over", False):
-        if now - st.session_state.game_state["last_candle_time"] >= CANDLE_INTERVAL:
-            new_candle = generate_adversarial_candle(st.session_state.game_state["history"][-1])
-            st.session_state.game_state["history"].append(new_candle)
-            st.session_state.game_state["last_candle_time"] = now
-
-    colA, colB, colC = st.columns(3)
-    with colA:
-        st.metric("Time Left", f"{int(time_left)}s")
-        if st.button("BUY LONG") and not st.session_state.game_state["position"]:
-            enter_position("long")
-    with colB:
-        initial = INITIAL_BALANCE
-        current = st.session_state.game_state["balance"]
-        wallet_delta = current - initial
-        wallet_text = f"${current:.2f} ({'+' if wallet_delta >= 0 else ''}{wallet_delta:.2f})"
-        st.metric("Wallet", wallet_text)
-        if st.button("SELL SHORT") and not st.session_state.game_state["position"]:
-            enter_position("short")
-    with colC:
-        st.metric("Trades", st.session_state.game_state["trade_count"])
-        if st.button("CLOSE") and st.session_state.game_state["position"]:
-            close_position()
-
-    # === Game Message ===
-    if st.session_state.game_state["message"]:
-        st.info(st.session_state.game_state["message"])
+    # Game active - use containers for selective updates
+    
+    # Top metrics container (updates frequently)
+    metrics_container = st.container()
+    with metrics_container:
+        now = time.time()
+        time_left = max(0, MAX_GAME_TIME - (now - st.session_state.game_state["start_time"]))
         
-    # === Candlestick Chart ===
-    df = pd.DataFrame(st.session_state.game_state["history"][-20:])
-    fig = go.Figure(go.Candlestick(
-        x=df['time'],
-        open=df['open'],
-        high=df['high'],
-        low=df['low'],
-        close=df['close'],
-        increasing_line_color='green',
-        decreasing_line_color='red'
-    ))
-    fig.update_layout(
-        height=350,
-        autosize=True,
-        margin=dict(l=10, r=10, t=5, b=20),
-        xaxis_rangeslider_visible=False
-    )
-    st.plotly_chart(fig, use_container_width=True)
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("⏰ Time Left", f"{int(time_left)}s")
+        with col2:
+            current = st.session_state.game_state["balance"]
+            initial = INITIAL_BALANCE
+            delta = current - initial
+            st.metric("💰 Balance", f"${current:.2f}", f"{delta:+.2f}")
+        with col3:
+            st.metric("📊 Trades", st.session_state.game_state["trade_count"])
 
-    # === Sidebar AI Feedback ===
-    st.sidebar.subheader("AI Intelligence")
-    for k, v in st.session_state.game_state["pattern_weights"].items():
-        st.sidebar.progress(min(100, v * 10), text=k.replace("_", " ").title())
-    st.sidebar.write(f"Traps Triggered: {st.session_state.game_state['ai_traps_triggered']}")
-    st.sidebar.write(f"Escapes: {st.session_state.game_state['player_success_escapes']}")
+    # Trading buttons container (static unless position changes)
+    buttons_container = st.container()
+    with buttons_container:
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("📈 BUY LONG", disabled=bool(st.session_state.game_state["position"])):
+                enter_position("long")
+                st.rerun()
+        with col2:
+            if st.button("📉 SELL SHORT", disabled=bool(st.session_state.game_state["position"])):
+                enter_position("short")
+                st.rerun()
+        with col3:
+            if st.button("❌ CLOSE", disabled=not bool(st.session_state.game_state["position"])):
+                close_position()
+                st.rerun()
 
+    # Position info (updates when position exists)
+    if st.session_state.game_state["position"]:
+        pos_container = st.container()
+        with pos_container:
+            pos_type = st.session_state.game_state["position"]
+            entry_price = st.session_state.game_state["entry_price"]
+            current_price = st.session_state.game_state["history"][-1]["close"]
+            
+            if pos_type == "long":
+                pnl = (current_price - entry_price) * TRADE_AMOUNT
+            else:
+                pnl = (entry_price - current_price) * TRADE_AMOUNT
+            
+            pnl_color = "🟢" if pnl >= 0 else "🔴"
+            st.info(f"{pnl_color} **{pos_type.upper()}** position | Entry: ${entry_price:.2f} | Current: ${current_price:.2f} | P&L: ${pnl:+.2f}")
+
+    # Messages container
+    if st.session_state.game_state["message"]:
+        msg_container = st.container()
+        with msg_container:
+            if "TRAP" in st.session_state.game_state["message"]:
+                st.error(st.session_state.game_state["message"])
+            elif "ESCAPED" in st.session_state.game_state["message"]:
+                st.success(st.session_state.game_state["message"])
+            else:
+                st.info(st.session_state.game_state["message"])
+
+ 
+    chart_container = st.container()
+    with chart_container:
+        st.subheader("📊 Live Market Data")
+  
+        chart_key = f"chart_{len(st.session_state.game_state['history'])}"
+        
+        df = pd.DataFrame(st.session_state.game_state["history"][-25:])
+        fig = go.Figure(go.Candlestick(
+            x=df['time'],
+            open=df['open'],
+            high=df['high'],
+            low=df['low'],
+            close=df['close'],
+            increasing_line_color='#00ff00',
+            decreasing_line_color='#ff0000',
+            name="Price"
+        ))
+        
+        fig.update_layout(
+            height=400,
+            showlegend=False,
+            xaxis_rangeslider_visible=False,
+            margin=dict(l=20, r=20, t=20, b=20),
+            plot_bgcolor='rgba(0,0,0,0.05)',
+            paper_bgcolor='rgba(0,0,0,0)'
+        )
+        
+        st.plotly_chart(fig, use_container_width=True, key=chart_key)
+
+    # Sidebar (relatively static)
+    with st.sidebar:
+        st.header("🤖 AI Intelligence")
+        
+        st.subheader("Pattern Weights")
+        for pattern, weight in st.session_state.game_state["pattern_weights"].items():
+            progress = min(1.0, weight / 10)
+            st.progress(progress, text=pattern.replace("_", " ").title())
+        
+        st.divider()
+        st.subheader("Game Stats")
+        st.write(f"🎯 AI Traps: {st.session_state.game_state['ai_traps_triggered']}")
+        st.write(f"🏃 Escapes: {st.session_state.game_state['player_success_escapes']}")
+        
+        bias = st.session_state.game_state["market_bias"]
+        if bias > 0.3:
+            st.error("📈 Bias: ANTI-SHORT")
+        elif bias < -0.3:
+            st.error("📉 Bias: ANTI-LONG") 
+        else:
+            st.success("📊 Bias: NEUTRAL")
+
+    # Game over logic
     if time_left <= 0 or st.session_state.game_state["balance"] <= 0:
-        st.session_state.game_state["is_game_over"] = True
-        if st.session_state.game_state["is_game_over"]:
-            st.warning("Game Over!")
+        if not st.session_state.game_state["is_game_over"]:
+            st.session_state.game_state["is_game_over"] = True
+        
+        game_over_container = st.container()
+        with game_over_container:
+            st.header("🎮 Game Over!")
+            
             final_balance = st.session_state.game_state["balance"]
             traps = st.session_state.game_state["ai_traps_triggered"]
             escapes = st.session_state.game_state["player_success_escapes"]
-            st.metric("Final Balance", f"${final_balance:.2f}")
-            st.metric("AI Traps Triggered", traps)
-            st.metric("Player Escapes", escapes)
-
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Final Balance", f"${final_balance:.2f}")
+            with col2:
+                st.metric("AI Traps", traps)
+            with col3:
+                st.metric("Your Escapes", escapes)
+            
             if escapes > traps:
                 st.balloons()
                 st.success("🎉 You outsmarted the AI!")
             elif escapes < traps:
-                st.error("💀 The AI manipulated the market against you!")
+                st.error("💀 The AI got you!")
             else:
-                st.info("🤝 A stalemate with the AI.")
-            if st.button("Restart Game"):
-                st.session_state.clear()
+                st.info("🤝 Stalemate with the AI!")
+            
+            if st.button("🔄 Restart Game", type="primary"):
+                for key in list(st.session_state.keys()):
+                    if 'game_state' in key:
+                        del st.session_state[key]
                 st.rerun()
-
-# Call the scroll position keeper function at the end
-scroll_position_keeper()
