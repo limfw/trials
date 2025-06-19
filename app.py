@@ -1,6 +1,6 @@
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
-st.set_page_config(page_title="Beat the Market AI", layout="wide")
+
 from collections import deque
 from datetime import datetime
 import numpy as np
@@ -10,6 +10,18 @@ import random
 import time
 
 # Auto-refresh every 1 second
+st.set_page_config(page_title="Beat the Market AI", layout="wide")
+st.markdown(
+    """
+    <style>
+    .block-container {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 st_autorefresh(interval=1000, key="ai_trading_refresh")
 
