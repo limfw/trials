@@ -1,6 +1,5 @@
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
-
 from collections import deque
 from datetime import datetime
 import numpy as np
@@ -232,7 +231,7 @@ else:
         decreasing_line_color='red'
     ))
     fig.update_layout(
-        height=500,
+        height=350,
         margin=dict(l=10, r=10, t=5, b=20),
         xaxis_rangeslider_visible=False
     )
