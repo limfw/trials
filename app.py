@@ -57,6 +57,23 @@ def update_ai_memory(action):
     else:
         st.session_state.game_state["market_bias"] = np.random.uniform(-0.3, 0.3)
 
+def generate_initial_candles(n=20):
+    candles = []
+    base_time = datetime.now() - pd.Timedelta(minutes=n)
+    price = 100.00
+    for i in range(n):
+        change = np.random.normal(0, 0.3)
+        new_price = price + change
+        candles.append({
+            "time": base_time + pd.Timedelta(minutes=i),
+            "open": price,
+            "high": max(price, new_price) + abs(np.random.normal(0, 0.1)),
+            "low": min(price, new_price) - abs(np.random.normal(0, 0.1)),
+            "close": new_price
+        })
+        price = new_price
+    return candles
+
 def generate_adversarial_candle(last_candle):
     last_close = last_candle["close"]
     base_change = np.random.normal(0, 0.3)
@@ -196,7 +213,7 @@ else:
         increasing_line_color='green',
         decreasing_line_color='red'
     ))
-    fig.update_layout(height=500, xaxis_rangeslider_visible=False)
+    fig.update_layout(height=500, xaxis_rangeslider_visible=False,xaxis=dict(tickformat="%H:%M:%S",tickmode="auto"))
 
     col1, col2, col3 = st.columns(3)
     with col1:
