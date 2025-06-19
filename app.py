@@ -216,6 +216,10 @@ else:
         if st.button("CLOSE") and st.session_state.game_state["position"]:
             close_position()
 
+    # === Game Message ===
+    if st.session_state.game_state["message"]:
+        st.info(st.session_state.game_state["message"])
+        
     # === Candlestick Chart ===
     df = pd.DataFrame(st.session_state.game_state["history"][-20:])
     fig = go.Figure(go.Candlestick(
@@ -233,10 +237,6 @@ else:
         xaxis_rangeslider_visible=False
     )
     st.plotly_chart(fig, use_container_width=True)
-
-    # === Game Message ===
-    if st.session_state.game_state["message"]:
-        st.info(st.session_state.game_state["message"])
 
     # === Sidebar AI Feedback ===
     st.sidebar.subheader("AI Intelligence")
