@@ -1,3 +1,4 @@
+from streamlit.components.v1 import html
 from datetime import datetime
 from collections import deque
 import numpy as np
@@ -20,6 +21,7 @@ MAX_GAME_TIME = 90
 MEMORY_SIZE = 10
 
 # Functions
+    
 def generate_initial_candles(n=20):
     candles = []
     price = 100.00
@@ -269,3 +271,22 @@ else:
     if time_left <= 0 or st.session_state.game_state["balance"] <= 0:
         st.session_state.game_state["is_game_over"] = True
 
+def scroll_to_previous_position():
+    js = """
+    <script>
+    // Store current scroll position
+    window.addEventListener('scroll', function() {
+        localStorage.setItem('scrollPosition', window.scrollY);
+    });
+    
+    // Restore scroll position on load
+    window.addEventListener('load', function() {
+        var scrollPosition = localStorage.getItem('scrollPosition');
+        if (scrollPosition !== null) {
+            window.scrollTo(0, scrollPosition);
+        }
+    });
+    </script>
+    """
+    html(js)
+scroll_to_previous_position()
