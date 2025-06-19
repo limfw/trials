@@ -12,6 +12,6 @@ class MarketRNN:
         if not self.memory:
             return random.choice(["buy", "hold", "sell"])
         freq = {"buy": 0, "hold": 0, "sell": 0}
-        for a in self.memory:
-            freq[a] += 1
+        for act in self.memory:
+            freq[act] += 1
         return max(freq, key=freq.get)
