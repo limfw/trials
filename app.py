@@ -1,16 +1,30 @@
-from datetime import datetime
+import streamlit as st
+from streamlit_autorefresh import st_autorefresh
 from collections import deque
+from datetime import datetime
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-import random
-import streamlit as st
-from streamlit_autorefresh import st_autorefresh
 import time
+import random
 
-# Auto-refresh every 1 second
-st_autorefresh(interval=1000, key="ai_trading_refresh")
+
 st.set_page_config(page_title="Beat the Market AI", layout="wide")
+
+st.markdown("""
+<style>
+.block-container {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+.stButton > button {
+    width: 100%;
+    height: 50px;
+    font-size: 16px;
+    font-weight: bold;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # Game Config
 INITIAL_BALANCE = 100.00
@@ -19,43 +33,20 @@ CANDLE_INTERVAL = 1.0
 MAX_GAME_TIME = 90
 MEMORY_SIZE = 10
 
-# Functions
-def generate_initial_candles(n=20):
-    candles = []
-    price = 100.00
-    for _ in range(n):
-        change = np.random.normal(0, 0.3)
-        new_price = price + change
-        candles.append({
-            "time": st.session_state.game_state["history"][-1]["time"] + pd.Timedelta(minutes=1),
-            "open": price,
-            "high": max(price, new_price) + abs(np.random.normal(0, 0.1)),
-            "low": min(price, new_price) - abs(np.random.normal(0, 0.1)),
-            "close": new_price
-        })
-        price = new_price
-    return candles
+# Utility Functions
 
-def update_ai_memory(action):
-    memory = st.session_state.game_state["action_memory"]
-    memory.append(action)
-    weights = st.session_state.game_state["pattern_weights"]
+def decay_weights():
+    for k in st.session_state.game_state["pattern_weights"]:
+        st.session_state.game_state["pattern_weights"][k] *= 0.95  # 5% decay per candle
 
-    if len(memory) >= 2:
-        if all(a == "buy" for a in memory):
-            weights["buy_sequence"] += 1
-        elif all(a == "sell" for a in memory):
-            weights["sell_sequence"] += 1
-        elif all(memory[i] != memory[i+1] for i in range(len(memory)-1)):
-            weights["alternating"] += 1
 
-    dominant = max(weights.items(), key=lambda x: x[1])[0]
-    if dominant == "buy_sequence":
-        st.session_state.game_state["market_bias"] = -0.7
-    elif dominant == "sell_sequence":
-        st.session_state.game_state["market_bias"] = 0.7
-    else:
-        st.session_state.game_state["market_bias"] = np.random.uniform(-0.3, 0.3)
+def apply_bias(dominant):
+    # 20% of the time apply a small random bias
+    if random.random() < 0.2:
+        return np.random.uniform(-0.2, 0.2)
+    # otherwise apply standard capped bias
+    return -0.3 if dominant == "buy_sequence" else 0.3
+
 
 def generate_initial_candles(n=20):
     candles = []
@@ -74,27 +65,42 @@ def generate_initial_candles(n=20):
         price = new_price
     return candles
 
+
 def generate_adversarial_candle(last_candle):
     last_close = last_candle["close"]
     base_change = np.random.normal(0, 0.3)
     bias = st.session_state.game_state["market_bias"]
 
-    if st.session_state.game_state["position"]:
-        if st.session_state.game_state["position"] == "long":
-            bias = min(-0.5, bias - 0.3)
-        else:
-            bias = max(0.5, bias + 0.3)
-
     change = base_change + bias
     new_close = max(0.01, last_close + change)
 
     return {
-        "time": last_candle["time"] + pd.Timedelta(minutes=1),  # ← FIXED HERE
+        "time": last_candle["time"] + pd.Timedelta(minutes=1),
         "open": last_close,
         "high": max(last_close, new_close) + abs(np.random.normal(0, 0.1)),
         "low": min(last_close, new_close) - abs(np.random.normal(0, 0.1)),
         "close": new_close
     }
+
+
+def update_ai_memory(action):
+    memory = st.session_state.game_state["action_memory"]
+    memory.append(action)
+    weights = st.session_state.game_state["pattern_weights"]
+
+    if len(memory) >= 2:
+        if all(a == "buy" for a in memory):
+            weights["buy_sequence"] += 1
+        elif all(a == "sell" for a in memory):
+            weights["sell_sequence"] += 1
+        elif all(memory[i] != memory[i+1] for i in range(len(memory)-1)):
+            weights["alternating"] += 1
+
+    dominant = max(weights.items(), key=lambda x: x[1])[0]
+    if dominant in ("buy_sequence", "sell_sequence"):
+        st.session_state.game_state["market_bias"] = apply_bias(dominant)
+    else:
+        st.session_state.game_state["market_bias"] = np.random.uniform(-0.3, 0.3)
 
 
 def enter_position(position_type):
@@ -108,9 +114,9 @@ def enter_position(position_type):
         "entry_price": last_candle["close"],
         "trade_count": st.session_state.game_state["trade_count"] + 1
     })
-
     update_ai_memory(position_type)
     st.session_state.game_state["message"] = f"Entered {position_type.upper()} at ${last_candle['close']:.2f}"
+
 
 def close_position():
     if not st.session_state.game_state["position"]:
@@ -166,106 +172,205 @@ if "game_state" not in st.session_state:
         },
         "ai_traps_triggered": 0,
         "player_success_escapes": 0,
-        "is_game_over": False
+        "is_game_over": False,
+        "last_update_count": 0
     }
 
-# Game UI
-st.markdown("Biased Market Challenge — Outsmart the AI Manipulator Before It Breaks You!", unsafe_allow_html=True)
+# Initialize empty containers for different sections
+if "containers" not in st.session_state:
+    st.session_state.containers = {}
 
+# Main title (static - doesn't need updates)
+st.markdown("## Beat the Market AI — Outsmart the Manipulator!")
+
+# Auto-refresh with counter
+refresh_count = st_autorefresh(interval=1000, key="ai_trading_refresh")
+
+# Only update game state when refresh count changes
+if refresh_count != st.session_state.game_state["last_update_count"]:
+    st.session_state.game_state["last_update_count"] = refresh_count
+    
+    # Update market data
+    if st.session_state.game_state["started"] and not st.session_state.game_state.get("is_game_over", False):
+        now = time.time()
+        if now - st.session_state.game_state["last_candle_time"] >= CANDLE_INTERVAL:
+            decay_weights()  # decay pattern weights each tick
+            new_candle = generate_adversarial_candle(st.session_state.game_state["history"][-1])
+            st.session_state.game_state["history"].append(new_candle)
+            st.session_state.game_state["last_candle_time"] = now
+
+# Game start section
 if not st.session_state.game_state["started"]:
     st.markdown("""
-    ### Instruction
-    
+    ### Instructions
+
     **Your Mission:**  
     Defeat the **biased market AI**. It watches your trades, learns your patterns, and manipulates prices to trap you. Your goal is to **profit while staying unpredictable**.
-    
-    ---
-    
+
     **How the AI Thinks:**
-    - Detects your move: **Buy / Sell / Alternating**
-    - Adjusts the market bias to move **against your current position**
-    - The more obvious your pattern, the easier it traps you
+    - Detects your patterns: **Buy / Sell / Alternating**
+    - Adjusts market bias to move **against your current position**
     
-    ---
+    **How to Win:**  
+    Escape more traps than you fall into.
+    """)
     
-    **How to Win:**
-    - You win if you escape **more traps than you fall into**
-    
-    """,unsafe_allow_html=True)
-    if st.button("Start Game"):
+    if st.button("🚀 Start Game", type="primary"):
         st.session_state.game_state.update({
             "started": True,
             "start_time": time.time(),
             "last_candle_time": time.time()
         })
         st.rerun()
+
 else:
-    now = time.time()
-    time_left = max(0, MAX_GAME_TIME - (now - st.session_state.game_state["start_time"]))
-    if not st.session_state.game_state.get("is_game_over", False):
-        if now - st.session_state.game_state["last_candle_time"] >= CANDLE_INTERVAL:
-            new_candle = generate_adversarial_candle(st.session_state.game_state["history"][-1])
-            st.session_state.game_state["history"].append(new_candle)
-            st.session_state.game_state["last_candle_time"] = now
-
-    colA, colB, colC = st.columns(3)
-    with colA:
-        st.metric("Time Left", f"{int(time_left)}s")
-    with colB:
-        initial = INITIAL_BALANCE
-        current = st.session_state.game_state['balance']
-        wallet_delta = current - initial
-        wallet_text = f"${current:.2f} ({'+' if wallet_delta >= 0 else ''}{wallet_delta:.2f})"
-        st.metric("Wallet", wallet_text)
-    with colC:
-        st.metric("Trades", st.session_state.game_state["trade_count"])
-
-    df = pd.DataFrame(st.session_state.game_state["history"][-20:])
-    fig = go.Figure(go.Candlestick(
-        x=df['time'],
-        open=df['open'],
-        high=df['high'],
-        low=df['low'],
-        close=df['close'],
-        increasing_line_color='green',
-        decreasing_line_color='red'
-    ))
-    fig.update_layout(height=500, xaxis_rangeslider_visible=False)
-
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("BUY LONG") and not st.session_state.game_state["position"]:
-            enter_position("long")
-    with col2:
-        if st.button("SELL SHORT") and not st.session_state.game_state["position"]:
-            enter_position("short")
-    with col3:
-        if st.button("CLOSE") and st.session_state.game_state["position"]:
-            close_position()
-
-    if st.session_state.game_state["message"]:
-        st.info(st.session_state.game_state["message"])
+    # Game active - use containers for selective updates
+    
+    # Top metrics container (updates frequently)
+    metrics_container = st.container()
+    with metrics_container:
+        now = time.time()
+        time_left = max(0, MAX_GAME_TIME - (now - st.session_state.game_state["start_time"]))
         
-    chart_placeholder = st.empty()
-    df = pd.DataFrame(st.session_state.game_state["history"][-20:])
-    fig = go.Figure(go.Candlestick(
-        x=df['time'],
-        open=df['open'],
-        high=df['high'],
-        low=df['low'],
-        close=df['close'],
-        increasing_line_color='green',
-        decreasing_line_color='red'
-    ))
-    fig.update_layout(height=500, title="Live Market", xaxis_rangeslider_visible=False)
-    chart_placeholder.plotly_chart(fig, use_container_width=True)
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("⏰ Time Left", f"{int(time_left)}s")
+        with col2:
+            current = st.session_state.game_state["balance"]
+            initial = INITIAL_BALANCE
+            delta = current - initial
+            st.metric("💰 Balance", f"${current:.2f}", f"{delta:+.2f}")
+        with col3:
+            st.metric("📊 Trades", st.session_state.game_state["trade_count"])
 
-    st.sidebar.subheader("AI Intelligence")
-    for k, v in st.session_state.game_state["pattern_weights"].items():
-        st.sidebar.progress(min(100, v * 10), text=k.replace("_", " ").title())
-    st.sidebar.write(f"Traps Triggered: {st.session_state.game_state['ai_traps_triggered']}")
-    st.sidebar.write(f"Escapes: {st.session_state.game_state['player_success_escapes']}")
+    # Trading buttons container (static unless position changes)
+    buttons_container = st.container()
+    with buttons_container:
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("📈 BUY LONG", disabled=bool(st.session_state.game_state["position"])):
+                enter_position("long")
+                st.rerun()
+        with col2:
+            if st.button("📉 SELL SHORT", disabled=bool(st.session_state.game_state["position"])):
+                enter_position("short")
+                st.rerun()
+        with col3:
+            if st.button("❌ CLOSE", disabled=not bool(st.session_state.game_state["position"])):
+                close_position()
+                st.rerun()
 
+    # Position info (updates when position exists)
+    if st.session_state.game_state["position"]:
+        pos_container = st.container()
+        with pos_container:
+            pos_type = st.session_state.game_state["position"]
+            entry_price = st.session_state.game_state["entry_price"]
+            current_price = st.session_state.game_state["history"][-1]["close"]
+            
+            if pos_type == "long":
+                pnl = (current_price - entry_price) * TRADE_AMOUNT
+            else:
+                pnl = (entry_price - current_price) * TRADE_AMOUNT
+            
+            pnl_color = "🟢" if pnl >= 0 else "🔴"
+            st.info(f"{pnl_color} **{pos_type.upper()}** position | Entry: ${entry_price:.2f} | Current: ${current_price:.2f} | P&L: ${pnl:+.2f}")
+
+    # Messages container
+    if st.session_state.game_state["message"]:
+        msg_container = st.container()
+        with msg_container:
+            if "TRAP" in st.session_state.game_state["message"]:
+                st.error(st.session_state.game_state["message"])
+            elif "ESCAPED" in st.session_state.game_state["message"]:
+                st.success(st.session_state.game_state["message"])
+            else:
+                st.info(st.session_state.game_state["message"])
+
+    # Chart container - this is the key part that updates frequently
+    chart_container = st.container()
+    with chart_container:
+        st.subheader("📊 Live Market Data")
+        
+        # Use a unique key based on data length to prevent unnecessary re-renders
+        chart_key = f"chart_{len(st.session_state.game_state['history'])}"
+        
+        df = pd.DataFrame(st.session_state.game_state["history"][-25:])
+        fig = go.Figure(go.Candlestick(
+            x=df['time'],
+            open=df['open'],
+            high=df['high'],
+            low=df['low'],
+            close=df['close'],
+            increasing_line_color='#00ff00',
+            decreasing_line_color='#ff0000',
+            name="Price"
+        ))
+        
+        fig.update_layout(
+            height=400,
+            showlegend=False,
+            xaxis_rangeslider_visible=False,
+            margin=dict(l=20, r=20, t=20, b=20),
+            plot_bgcolor='rgba(0,0,0,0.05)',
+            paper_bgcolor='rgba(0,0,0,0)'
+        )
+        
+        st.plotly_chart(fig, use_container_width=True, key=chart_key)
+
+    # Sidebar (relatively static)
+    with st.sidebar:
+        st.header("🤖 AI Intelligence")
+        
+        st.subheader("Pattern Weights")
+        for pattern, weight in st.session_state.game_state["pattern_weights"].items():
+            progress = min(1.0, weight / 10)
+            st.progress(progress, text=pattern.replace("_", " ").title())
+        
+        st.divider()
+        st.subheader("Game Stats")
+        st.write(f"🎯 AI Traps: {st.session_state.game_state['ai_traps_triggered']}")
+        st.write(f"🏃 Escapes: {st.session_state.game_state['player_success_escapes']}")
+        
+        bias = st.session_state.game_state["market_bias"]
+        if bias > 0.3:
+            st.error("📈 Bias: ANTI-SHORT")
+        elif bias < -0.3:
+            st.error("📉 Bias: ANTI-LONG") 
+        else:
+            st.success("📊 Bias: NEUTRAL")
+
+    # Game over logic
     if time_left <= 0 or st.session_state.game_state["balance"] <= 0:
-        st.session_state.game_state["is_game_over"] = True
-
+        if not st.session_state.game_state["is_game_over"]:
+            st.session_state.game_state["is_game_over"] = True
+        
+        game_over_container = st.container()
+        with game_over_container:
+            st.header("🎮 Game Over!")
+            
+            final_balance = st.session_state.game_state["balance"]
+            traps = st.session_state.game_state["ai_traps_triggered"]
+            escapes = st.session_state.game_state["player_success_escapes"]
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Final Balance", f"${final_balance:.2f}")
+            with col2:
+                st.metric("AI Traps", traps)
+            with col3:
+                st.metric("Your Escapes", escapes)
+            
+            if escapes > traps:
+                st.balloons()
+                st.success("🎉 You outsmarted the AI!")
+            elif escapes < traps:
+                st.error("💀 The AI got you!")
+            else:
+                st.info("🤝 Stalemate with the AI!")
+            
+            if st.button("🔄 Restart Game", type="primary"):
+                for key in list(st.session_state.keys()):
+                    if 'game_state' in key:
+                        del st.session_state[key]
+                st.rerun()
