@@ -7,6 +7,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import random
 import time
+import streamlit.components.v1 as components # Import components
 
 # Auto-refresh every 1 second
 st.set_page_config(page_title="Beat the Market AI", layout="wide")
@@ -58,7 +59,7 @@ def generate_adversarial_candle(last_candle):
     if st.session_state.game_state["position"]:
         if st.session_state.game_state["position"] == "long":
             bias = min(-0.5, bias - 0.3)
-        else:
+        else: # position == "short"
             bias = max(0.5, bias + 0.3)
 
     change = base_change + bias
@@ -85,13 +86,14 @@ def update_ai_memory(action):
         elif all(memory[i] != memory[i+1] for i in range(len(memory)-1)):
             weights["alternating"] += 1
 
+    # Determine dominant pattern and set market bias
     dominant = max(weights.items(), key=lambda x: x[1])[0]
     if dominant == "buy_sequence":
-        st.session_state.game_state["market_bias"] = -0.7
+        st.session_state.game_state["market_bias"] = -0.7 # Punish buying
     elif dominant == "sell_sequence":
-        st.session_state.game_state["market_bias"] = 0.7
-    else:
-        st.session_state.game_state["market_bias"] = np.random.uniform(-0.3, 0.3)
+        st.session_state.game_state["market_bias"] = 0.7  # Punish selling
+    else: # alternating or no clear pattern
+        st.session_state.game_state["market_bias"] = np.random.uniform(-0.3, 0.3) # More neutral/random
 
 def enter_position(position_type):
     if st.session_state.game_state["position"]:
@@ -120,10 +122,10 @@ def close_position():
 
     if position_type == "long":
         profit = (exit_price - entry) * TRADE_AMOUNT
-        trap = bias < 0
-    else:
+        trap = bias < 0 # Market biased downwards when you are long
+    else: # position_type == "short"
         profit = (entry - exit_price) * TRADE_AMOUNT
-        trap = bias > 0
+        trap = bias > 0 # Market biased upwards when you are short
 
     st.session_state.game_state["balance"] += profit
     st.session_state.game_state.update({
@@ -164,6 +166,35 @@ if "game_state" not in st.session_state:
         "is_game_over": False
     }
 
+# Initialize scroll key counter if not present
+if "scroll_key_counter" not in st.session_state:
+    st.session_state.scroll_key_counter = 0
+
+# Function to keep scroll position
+def scroll_position_keeper():
+    st.session_state.scroll_key_counter += 1
+    js_code = """
+    <script>
+        var mainDiv = window.parent.document.querySelector('.main');
+        if (mainDiv) {
+            // Save scroll position
+            mainDiv.addEventListener('scroll', function() {
+                localStorage.setItem('streamlitScrollPos', mainDiv.scrollTop);
+            });
+
+            // Restore scroll position
+            var savedScrollPos = localStorage.getItem('streamlitScrollPos');
+            if (savedScrollPos) {
+                mainDiv.scrollTop = savedScrollPos;
+                // Optional: Clear after restoring if you want it reset on full new session
+                // localStorage.removeItem('streamlitScrollPos');
+            }
+        }
+    </script>
+    """
+    # REMOVED the 'key' argument from the line below
+    components.html(js_code, height=0, width=0)
+
 # === UI ===
 st.markdown("## Biased Market Challenge — Outsmart the AI Manipulator Before It Breaks You!")
 
@@ -171,14 +202,14 @@ if not st.session_state.game_state["started"]:
     st.markdown("""
     ### Instruction
 
-    **Your Mission:**  
+    **Your Mission:**  
     Defeat the **biased market AI**. It watches your trades, learns your patterns, and manipulates prices to trap you. Your goal is to **profit while staying unpredictable**.
 
     **How the AI Thinks:**
     - Detects your move: **Buy / Sell / Alternating**
     - Adjusts the market bias to move **against your current position**
     
-    **How to Win:**  
+    **How to Win:**  
     Escape more traps than you fall into.
     """)
     if st.button("Start Game"):
@@ -238,7 +269,6 @@ else:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-
     # === Sidebar AI Feedback ===
     st.sidebar.subheader("AI Intelligence")
     for k, v in st.session_state.game_state["pattern_weights"].items():
@@ -248,3 +278,25 @@ else:
 
     if time_left <= 0 or st.session_state.game_state["balance"] <= 0:
         st.session_state.game_state["is_game_over"] = True
+        if st.session_state.game_state["is_game_over"]:
+            st.warning("Game Over!")
+            final_balance = st.session_state.game_state["balance"]
+            traps = st.session_state.game_state["ai_traps_triggered"]
+            escapes = st.session_state.game_state["player_success_escapes"]
+            st.metric("Final Balance", f"${final_balance:.2f}")
+            st.metric("AI Traps Triggered", traps)
+            st.metric("Player Escapes", escapes)
+
+            if escapes > traps:
+                st.balloons()
+                st.success("🎉 You outsmarted the AI!")
+            elif escapes < traps:
+                st.error("💀 The AI manipulated the market against you!")
+            else:
+                st.info("🤝 A stalemate with the AI.")
+            if st.button("Restart Game"):
+                st.session_state.clear()
+                st.rerun()
+
+# Call the scroll position keeper function at the end
+scroll_position_keeper()
