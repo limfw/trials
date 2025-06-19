@@ -1,63 +1,80 @@
-## How the Game Works
+## Beat the Market AI — Outsmart the Biased Manipulator
 
-**Beat the Market AI** is a 60-second decision-making simulation where players act as traders in a dynamic market environment. The objective is to maximize trading profit within the time limit by making sequential decisions: **Buy**, **Hold**, or **Sell**.
-
-Unlike traditional simulations or random market games, this one features an AI that actively watches, learns from, and reacts to the player's behavior. The game is designed to simulate how intelligent systems or financial markets adapt to exploit predictable strategies.
+This is a decision-based trading game that simulates a biased market controlled by an intelligent adversary. Your role is to act as a trader and defeat the manipulative system by anticipating its traps and making smart trading decisions.
 
 ---
 
-### Gameplay Flow
+### Game Logic
 
-Each turn (up to 60 total), the following steps occur:
+The system simulates a trading environment where the price evolves over time as candlestick charts. Behind the scenes, an AI manipulator continuously observes your behavior and attempts to bias the market against your actions.
 
-1. The player selects one action: Buy, Hold, or Sell.
-2. The AI observes the player’s behavior by storing recent moves.
-3. The **RNN module** (Recurrent Neural Network) processes the last few actions and predicts the player's likely next move.
-4. The **GAN-inspired signal generator** then creates a market signal designed to manipulate the player based on that prediction:
-   - If the AI thinks the player will Buy, it may simulate a bullish signal (e.g., "fake breakout") to encourage the action — and then reverse the price.
-   - If the AI expects a Sell, it might simulate a reversal or false trend to exploit it.
-5. The **Market Engine** adjusts the price accordingly, simulating the effect of the signal.
-6. Profit or loss is calculated based on the action and resulting price movement.
-7. The AI updates its understanding of the player’s behavior and refines its deception strategy on the next move.
+At every moment, you can:
 
-This loop repeats until the 60-second session ends.
+* Enter a **Buy (Long)** position
+* Enter a **Sell (Short)** position
+* **Close** an existing position to realize gains or losses
+
+Each choice influences not only your potential profit but also how the market manipulator reacts to you next.
 
 ---
 
-### Adaptive AI Architecture
+### Simulation Flow
 
-The game’s AI behavior is built on three core components:
+1. **Initialization**:
 
-- **MarketRNN** – Tracks the player’s most recent actions and identifies behavior patterns using a short memory window (e.g., last 5 moves). It predicts what the player is most likely to do next.
+   * The game starts with a wallet of \$100.
+   * A historical price chart is generated to give context.
 
-- **MarketGAN** – Generates deceptive market signals (e.g., fake breakouts, trend traps, reversals) based on the predicted next action, with the goal of manipulating player expectations.
+2. **Live Market Generation**:
 
-- **MarketEngine** – Simulates the outcome by adjusting prices based on the signal and the player’s action. It also calculates profit or loss and feeds that back into the AI's learning loop.
+   * New price movements are added periodically.
+   * Each new price point is shaped by two factors:
 
-This modular architecture simulates an adversarial relationship between trader and market, mirroring how real financial systems exploit observable behavioral patterns.
+     * Random market noise
+     * Strategic bias from the AI based on your trade history
+
+3. **AI Strategy**:
+
+   * The AI tracks your recent decisions (e.g., Buy-Buy-Buy, Sell-Sell, or alternating).
+   * Once a pattern is detected, it adjusts market direction to work against your expected outcome.
+
+     * For example: If you Buy repeatedly, the AI will push prices downward.
+   * If you open a position and the market turns against you due to AI bias, you may fall into a trap.
+
+4. **Trade Mechanics**:
+
+   * When you **enter a position**, your entry price is recorded.
+   * When you **close the position**, the outcome is calculated based on market movement and whether the AI was actively trapping you.
+   * Escaping a trap successfully is counted as a strategic win.
+
+5. **Game End**:
+
+   * The game runs for a fixed time (e.g., 90 seconds).
+   * Your final performance is evaluated based on:
+
+     * Total wallet balance
+     * Number of trades
+     * Number of traps triggered vs. traps escaped
 
 ---
 
-## Learning Objectives and Real-World Parallel
+### Player Tips
 
-This simulation is designed to highlight several core concepts in finance, behavioral economics, and artificial intelligence:
-
-- **Behavioral Finance** – The player experiences how habits, emotional reactions, or predictable patterns can be exploited by an intelligent market opponent.
-
-- **Reinforcement and Adversarial Learning** – The AI responds to real-time behavior, simulating how algorithmic systems adjust to human trading strategies.
-
-- **Strategic Adaptation** – Success requires constant re-evaluation of strategy, as repetition leads to exploitation by the AI.
-
-- **AI Transparency and Deception** – Through post-game feedback, players can reflect on how their strategies were detected and manipulated.
+* Avoid obvious trading patterns (e.g., constant buying).
+* Think like a strategist — consider how your next action might be exploited.
+* Even a few successful trades can lead to victory.
+* Random or alternating strategies can confuse the AI and reduce bias.
 
 ---
 
-## Why It Matters
+### Learning Objective
 
-This simulation reflects real-world trading environments where:
+This game models adversarial behavior in decision-making systems. It demonstrates how predictive systems can be exploited or defeated through awareness, unpredictability, and strategic thinking. It can be used to study:
 
-- Human traders face algorithmic adversaries.
-- Markets adapt to visible strategies.
-- Success depends on adaptability, awareness, and behavioral control.
+* Behavioral patterns under manipulation
+* Reward–punishment loops in adversarial systems
+* Decision making under uncertainty
+* How AI systems might simulate market bias
 
-By playing **Beat the Market AI**, users gain hands-on insight into the intersection of pattern recognition, algorithmic deception, and strategic decision-making in time-sensitive, adversarial settings.
+---
+
