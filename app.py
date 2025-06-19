@@ -197,6 +197,18 @@ else:
         decreasing_line_color='red'
     ))
     fig.update_layout(height=500, xaxis_rangeslider_visible=False)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("BUY LONG") and not st.session_state.game_state["position"]:
+            enter_position("long")
+    with col2:
+        if st.button("SELL SHORT") and not st.session_state.game_state["position"]:
+            enter_position("short")
+    with col3:
+        if st.button("CLOSE") and st.session_state.game_state["position"]:
+            close_position()
+            
     #st.plotly_chart(fig, use_container_width=True)
     # Chart placeholder to prevent layout shift
     chart_placeholder = st.empty()
@@ -212,18 +224,6 @@ else:
     ))
     fig.update_layout(height=500, title="📈 Live Market", xaxis_rangeslider_visible=False)
     chart_placeholder.plotly_chart(fig, use_container_width=True)
-
-
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("BUY LONG") and not st.session_state.game_state["position"]:
-            enter_position("long")
-    with col2:
-        if st.button("SELL SHORT") and not st.session_state.game_state["position"]:
-            enter_position("short")
-    with col3:
-        if st.button("CLOSE") and st.session_state.game_state["position"]:
-            close_position()
 
     if st.session_state.game_state["message"]:
         st.info(st.session_state.game_state["message"])
