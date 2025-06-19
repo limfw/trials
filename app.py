@@ -232,10 +232,12 @@ else:
     ))
     fig.update_layout(
         height=350,
+        autosize=True,
         margin=dict(l=10, r=10, t=5, b=20),
         xaxis_rangeslider_visible=False
     )
     st.plotly_chart(fig, use_container_width=True)
+
 
     # === Sidebar AI Feedback ===
     st.sidebar.subheader("AI Intelligence")
