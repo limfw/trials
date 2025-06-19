@@ -4,8 +4,12 @@ import numpy as np
 import plotly.graph_objects as go
 import time
 from datetime import datetime
+from streamlit_autorefresh import st_autorefresh  # NEW IMPORT
 
 st.set_page_config(page_title="Live Trading Simulator", layout="wide")
+
+# Auto-refresh every 1000ms (1 second)
+st_autorefresh(interval=1000, key="refresh")
 
 # Game settings
 INITIAL_BALANCE = 100.00
