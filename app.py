@@ -1,15 +1,16 @@
-from datetime import datetime
+import streamlit as st
+from streamlit_autorefresh import st_autorefresh
+st.set_page_config(page_title="Beat the Market AI", layout="wide")
 from collections import deque
+from datetime import datetime
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import random
-import streamlit as st
-from streamlit_autorefresh import st_autorefresh
 import time
 
 # Auto-refresh every 1 second
-st.set_page_config(page_title="Beat the Market AI", layout="wide")
+
 st_autorefresh(interval=1000, key="ai_trading_refresh")
 
 # Game Config
