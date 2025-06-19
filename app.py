@@ -27,7 +27,7 @@ def generate_initial_candles(n=20):
         change = np.random.normal(0, 0.3)
         new_price = price + change
         candles.append({
-            "time": datetime.now(),
+            "time": st.session_state.game_state["history"][-1]["time"] + pd.Timedelta(minutes=1),
             "open": price,
             "high": max(price, new_price) + abs(np.random.normal(0, 0.1)),
             "low": min(price, new_price) - abs(np.random.normal(0, 0.1)),
@@ -225,7 +225,10 @@ else:
     with col3:
         if st.button("CLOSE") and st.session_state.game_state["position"]:
             close_position()
-            
+
+    if st.session_state.game_state["message"]:
+        st.info(st.session_state.game_state["message"])
+        
     #st.plotly_chart(fig, use_container_width=True)
     # Chart placeholder to prevent layout shift
     chart_placeholder = st.empty()
@@ -239,11 +242,8 @@ else:
         increasing_line_color='green',
         decreasing_line_color='red'
     ))
-    fig.update_layout(height=500, title="📈 Live Market", xaxis_rangeslider_visible=False)
+    fig.update_layout(height=500, title="Live Market", xaxis_rangeslider_visible=False)
     chart_placeholder.plotly_chart(fig, use_container_width=True)
-
-    if st.session_state.game_state["message"]:
-        st.info(st.session_state.game_state["message"])
 
     st.sidebar.subheader("🤖 AI Intelligence")
     for k, v in st.session_state.game_state["pattern_weights"].items():
