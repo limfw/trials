@@ -1,15 +1,16 @@
+from streamlit_autorefresh import st_autorefresh
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import time
+import random
 from datetime import datetime
-from streamlit_autorefresh import st_autorefresh  # NEW IMPORT
+
+# Set up auto-refresh every 1000ms (1 second)
+st_autorefresh(interval=1000, key="data_refresh")
 
 st.set_page_config(page_title="Live Trading Simulator", layout="wide")
-
-# Auto-refresh every 1000ms (1 second)
-st_autorefresh(interval=1000, key="refresh")
 
 # Game settings
 INITIAL_BALANCE = 100.00
@@ -27,7 +28,8 @@ if "game_state" not in st.session_state:
         "start_time": None,
         "last_candle_time": None,
         "message": "",
-        "trade_count": 0
+        "trade_count": 0,
+        "auto_close_counter": 0
     }
 
 def generate_initial_candles(n=20):
@@ -92,7 +94,8 @@ def enter_position(position_type):
     st.session_state.game_state.update({
         "position": position_type,
         "entry_price": last_candle["close"],
-        "trade_count": st.session_state.game_state["trade_count"] + 1
+        "trade_count": st.session_state.game_state["trade_count"] + 1,
+        "auto_close_counter": 0  # Reset auto-close counter
     })
     st.session_state.game_state["message"] = f"Opened {position_type} position at {last_candle['close']:.2f}"
 
@@ -114,7 +117,8 @@ def close_position():
     st.session_state.game_state["balance"] += profit
     st.session_state.game_state.update({
         "position": None,
-        "entry_price": None
+        "entry_price": None,
+        "auto_close_counter": 0
     })
     st.session_state.game_state["message"] = f"Closed {position_type} position. {'Gained' if profit >=0 else 'Lost'} ${abs(profit):.2f}"
 
@@ -141,9 +145,9 @@ if not st.session_state.game_state["started"]:
             "start_time": time.time(),
             "last_candle_time": time.time(),
             "message": "Game started! Place your first trade.",
-            "trade_count": 0
+            "trade_count": 0,
+            "auto_close_counter": 0
         })
-        st.experimental_rerun()
 else:
     # Game active section
     now = time.time()
@@ -165,13 +169,11 @@ else:
         st.session_state.game_state["history"].append(new_candle)
         st.session_state.game_state["last_candle_time"] = now
         
-        # Auto-close position after 10 seconds
-        if st.session_state.game_state["position"] and len(st.session_state.game_state["history"]) > 10:
-            last_10_candles = st.session_state.game_state["history"][-10:]
-            if all(c["time"] > last_10_candles[0]["time"] for c in last_10_candles[1:]):
+        # Auto-close position after 10 candles
+        if st.session_state.game_state["position"]:
+            st.session_state.game_state["auto_close_counter"] += 1
+            if st.session_state.game_state["auto_close_counter"] >= 10:
                 close_position()
-        
-        st.experimental_rerun()
     
     # Display chart
     plot_chart(st.session_state.game_state["history"][-20:])  # Show last 20 candles
@@ -192,19 +194,17 @@ else:
     with col1:
         if st.button("BUY (Go Long)") and st.session_state.game_state["position"] is None:
             enter_position("long")
-            st.experimental_rerun()
     with col2:
         if st.button("SELL (Go Short)") and st.session_state.game_state["position"] is None:
             enter_position("short")
-            st.experimental_rerun()
     with col3:
         if st.button("CLOSE Position") and st.session_state.game_state["position"] is not None:
             close_position()
-            st.experimental_rerun()
     
     # End game conditions
     if time_left <= 0:
+        if st.session_state.game_state["position"]:
+            close_position()
         st.session_state.game_state["started"] = False
         st.balloons()
         st.success(f"Trading session ended! Final balance: ${st.session_state.game_state['balance']:.2f}")
-        st.stop()
