@@ -213,7 +213,7 @@ else:
         increasing_line_color='green',
         decreasing_line_color='red'
     ))
-    fig.update_layout(height=500, xaxis_rangeslider_visible=False,xaxis=dict(tickformat="%H:%M:%S",tickmode="auto"))
+    fig.update_layout(height=500, xaxis_rangeslider_visible=False)
 
     col1, col2, col3 = st.columns(3)
     with col1:
