@@ -10,7 +10,7 @@ import time
 
 # Auto-refresh every 1 second
 st_autorefresh(interval=1000, key="ai_trading_refresh")
-st.set_page_config(page_title="🧠 Beat the Market AI", layout="wide")
+st.set_page_config(page_title="Beat the Market AI", layout="wide")
 
 # Game Config
 INITIAL_BALANCE = 100.00
@@ -110,7 +110,7 @@ def enter_position(position_type):
     })
 
     update_ai_memory(position_type)
-    st.session_state.game_state["message"] = f"🟢 Entered {position_type.upper()} at ${last_candle['close']:.2f}"
+    st.session_state.game_state["message"] = f"Entered {position_type.upper()} at ${last_candle['close']:.2f}"
 
 def close_position():
     if not st.session_state.game_state["position"]:
@@ -138,12 +138,12 @@ def close_position():
 
     if profit < 0 and trap:
         st.session_state.game_state["ai_traps_triggered"] += 1
-        st.session_state.game_state["message"] = f"🔴 AI TRAP! You lost ${abs(profit):.2f}"
+        st.session_state.game_state["message"] = f"AI TRAP! You lost ${abs(profit):.2f}"
     elif profit > 0 and trap:
         st.session_state.game_state["player_success_escapes"] += 1
-        st.session_state.game_state["message"] = f"🧠 YOU ESCAPED AI TRAP! Gained ${profit:.2f}"
+        st.session_state.game_state["message"] = f"YOU ESCAPED AI TRAP! Gained ${profit:.2f}"
     else:
-        st.session_state.game_state["message"] = f"⚪ Neutral trade result: ${profit:.2f}"
+        st.session_state.game_state["message"] = f"Neutral trade result: ${profit:.2f}"
 
 # Game State Init
 if "game_state" not in st.session_state:
@@ -166,10 +166,11 @@ if "game_state" not in st.session_state:
         },
         "ai_traps_triggered": 0,
         "player_success_escapes": 0
+        "is_game_over": False
     }
 
 # Game UI
-st.title("🎯 Beat the Market AI")
+st.title("Beat the Market AI")
 
 if not st.session_state.game_state["started"]:
     st.markdown("""
@@ -200,9 +201,9 @@ else:
         st.session_state.game_state["history"].append(new_candle)
         st.session_state.game_state["last_candle_time"] = now
 
-    st.subheader(f"⏱️ Time left: {int(time_left)}s")
-    st.metric("💰 Balance", f"${st.session_state.game_state['balance']:.2f}")
-    st.metric("📊 Trades", st.session_state.game_state["trade_count"])
+    st.subheader(f"Time left: {int(time_left)}s")
+    st.metric("Balance", f"${st.session_state.game_state['balance']:.2f}")
+    st.metric("Trades", st.session_state.game_state["trade_count"])
 
     df = pd.DataFrame(st.session_state.game_state["history"][-20:])
     fig = go.Figure(go.Candlestick(
@@ -246,17 +247,12 @@ else:
     fig.update_layout(height=500, title="Live Market", xaxis_rangeslider_visible=False)
     chart_placeholder.plotly_chart(fig, use_container_width=True)
 
-    st.sidebar.subheader("🤖 AI Intelligence")
+    st.sidebar.subheader("AI Intelligence")
     for k, v in st.session_state.game_state["pattern_weights"].items():
         st.sidebar.progress(min(100, v * 10), text=k.replace("_", " ").title())
-    st.sidebar.write(f"🎯 Traps Triggered: {st.session_state.game_state['ai_traps_triggered']}")
-    st.sidebar.write(f"🧠 Escapes: {st.session_state.game_state['player_success_escapes']}")
+    st.sidebar.write(f"Traps Triggered: {st.session_state.game_state['ai_traps_triggered']}")
+    st.sidebar.write(f"Escapes: {st.session_state.game_state['player_success_escapes']}")
 
     if time_left <= 0 or st.session_state.game_state["balance"] <= 0:
-        st.session_state.game_state["started"] = False
-        win = st.session_state.game_state["player_success_escapes"] > st.session_state.game_state["ai_traps_triggered"]
-        if win:
-            st.balloons()
-            st.success(f"You WIN! Escaped {st.session_state.game_state['player_success_escapes']} times.")
-        else:
-            st.error(f"AI Wins! It trapped you {st.session_state.game_state['ai_traps_triggered']} times.")
+    st.session_state.game_state["is_game_over"] = True
+
