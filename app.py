@@ -170,7 +170,7 @@ if "game_state" not in st.session_state:
     }
 
 # Game UI
-st.title("Beat the Market AI",unsafe_allow_html=True)
+st.markdown("###Beat the Market AI — Outsmart the Manipulator", unsafe_allow_html=True)
 
 if not st.session_state.game_state["started"]:
     st.markdown("""
@@ -202,9 +202,14 @@ else:
             st.session_state.game_state["history"].append(new_candle)
             st.session_state.game_state["last_candle_time"] = now
 
-    st.subheader(f"Time left: {int(time_left)}s")
-    st.metric("Balance", f"${st.session_state.game_state['balance']:.2f}")
-    st.metric("Trades", st.session_state.game_state["trade_count"])
+    colA, colB, colC = st.columns(3)
+    with colA:
+        st.metric("Time Left", f"{int(time_left)}s")
+    with colB:
+        st.metric("Balance", f"${st.session_state.game_state['balance']:.2f}")
+    with colC:
+        st.metric("Trades", st.session_state.game_state["trade_count"])
+
 
     df = pd.DataFrame(st.session_state.game_state["history"][-20:])
     fig = go.Figure(go.Candlestick(
