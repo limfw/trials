@@ -22,6 +22,7 @@ if "started" not in st.session_state:
     st.session_state.predicted_move = None
     st.session_state.trial_count = 0
     st.session_state.transition_table = {} 
+    st.session_state.game_over = False
 
 def generate_initial_trend(n=20):
     prices = [100]
@@ -77,6 +78,8 @@ def predict_next_action():
     return random.choice(["buy", "sell"])
 
 def handle_action(choice):
+    if st.session_state.game_over:
+        return
     st.session_state.actions.append(choice)
     st.session_state.trial_count += 1
     update_transition_memory(st.session_state.actions)
@@ -90,7 +93,6 @@ def handle_action(choice):
         st.session_state.score += 1
     else:
         st.session_state.score -= 1
-
 
 st.title("Beat the Market AI")
 if not st.session_state.started:
@@ -109,7 +111,7 @@ if not st.session_state.started:
   - Wrong move: –1 point
   - Hold: 0 point
 Stay unpredictable. Outsmart the AI. Maximize your profit.
-    """)
+""")
     if st.button("Start Game"):
         st.session_state.history = generate_initial_trend(n=20)
         st.session_state.actions = []
@@ -119,37 +121,38 @@ Stay unpredictable. Outsmart the AI. Maximize your profit.
         st.session_state.trial_count = 0
         st.session_state.transition_table = {}
         st.session_state.last_action_time = time.time()
+        st.session_state.game_over = False
 else:
     now = time.time()
     elapsed = now - st.session_state.start_time
-    st.write(f"Time left: {int(TOTAL_TIME - elapsed)}s")
+
+    if elapsed >= TOTAL_TIME or st.session_state.trial_count >= TOTAL_TRIALS:
+        if not st.session_state.game_over:
+            st.success(f"Game Over. Final Score: {st.session_state.score}")
+            st.session_state.game_over = True
+
+    st.write(f"Time left: {max(0, int(TOTAL_TIME - elapsed))}s")
     st.write(f"Score: {st.session_state.score}  |  Trials: {st.session_state.trial_count}/60")
     plot_chart(st.session_state.history[-WINDOW:])
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("Buy"):
-            handle_action("Buy")
-    with col2:
-        if st.button("Hold"):
-            handle_action("Hold")
-    with col3:
-        if st.button("Sell"):
-            handle_action("Sell")
+    if not st.session_state.game_over:
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("Buy"):
+                handle_action("Buy")
+        with col2:
+            if st.button("Hold"):
+                handle_action("Hold")
+        with col3:
+            if st.button("Sell"):
+                handle_action("Sell")
 
-    if now - st.session_state.last_action_time >= CANDLE_INTERVAL:
-        last_price = st.session_state.history[-1]["close"]
-        if st.session_state.trial_count < 30:
-            new_candle = generate_candle(last_price, random.choice(["buy", "sell"]))
-        else:
-            predicted = predict_next_action()
-            new_candle = generate_candle(last_price, predicted)
-        st.session_state.history.append(new_candle)
-        st.session_state.last_action_time = now
-
-    if elapsed >= TOTAL_TIME or st.session_state.trial_count >= TOTAL_TRIALS:
-        st.success(f"Game Over. Final Score: {st.session_state.score}")
-        st.session_state.started = False
-        st.stop()
-        
-        
+        if now - st.session_state.last_action_time >= CANDLE_INTERVAL:
+            last_price = st.session_state.history[-1]["close"]
+            if st.session_state.trial_count < 30:
+                new_candle = generate_candle(last_price, random.choice(["buy", "sell"]))
+            else:
+                predicted = predict_next_action()
+                new_candle = generate_candle(last_price, predicted)
+            st.session_state.history.append(new_candle)
+            st.session_state.last_action_time = now
