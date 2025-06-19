@@ -212,7 +212,11 @@ else:
     with colA:
         st.metric("Time Left", f"{int(time_left)}s")
     with colB:
-        st.metric("Balance", f"${st.session_state.game_state['balance']:.2f}")
+        initial = INITIAL_BALANCE
+        current = st.session_state.game_state['balance']
+        wallet_delta = current - initial
+        wallet_text = f"${current:.2f} ({'+' if wallet_delta >= 0 else ''}{wallet_delta:.2f})"
+        st.metric("Wallet", wallet_text)
     with colC:
         st.metric("Trades", st.session_state.game_state["trade_count"])
 
