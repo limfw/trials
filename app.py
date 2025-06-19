@@ -165,7 +165,7 @@ if "game_state" not in st.session_state:
             "alternating": 0
         },
         "ai_traps_triggered": 0,
-        "player_success_escapes": 0
+        "player_success_escapes": 0,
         "is_game_over": False
     }
 
