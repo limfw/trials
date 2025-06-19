@@ -2,74 +2,63 @@ import streamlit as st
 import time
 import random
 import numpy as np
-from model.rnn_model import RNNPredictor
-from model.gan_module import GANStrategy
+from model.market_rnn import MarketRNN
+from model.market_gan import MarketGAN
+from model.market_engine import MarketEngine
 
 if 'start_time' not in st.session_state:
     st.session_state.start_time = None
-if 'moves' not in st.session_state:
-    st.session_state.moves = []
-if 'results' not in st.session_state:
-    st.session_state.results = []
+if 'history' not in st.session_state:
+    st.session_state.history = []
+if 'profit' not in st.session_state:
+    st.session_state.profit = 0
+if 'price' not in st.session_state:
+    st.session_state.price = 100.0
 if 'rnn' not in st.session_state:
-    st.session_state.rnn = RNNPredictor()
+    st.session_state.rnn = MarketRNN()
 if 'gan' not in st.session_state:
-    st.session_state.gan = GANStrategy()
+    st.session_state.gan = MarketGAN()
+if 'engine' not in st.session_state:
+    st.session_state.engine = MarketEngine()
 
-def ai_decision():
-    history = [m['player'] for m in st.session_state.moves[-5:]]
-    rnn_predict = st.session_state.rnn.predict_next_move(history)
-    gan_predict = st.session_state.gan.generate_move(history)
-    return random.choice([rnn_predict, gan_predict])
-
-def result(player, ai):
-    if player == ai:
-        return "Draw"
-    elif (player == "rock" and ai == "scissors") or \
-         (player == "scissors" and ai == "paper") or \
-         (player == "paper" and ai == "rock"):
-        return "Win"
-    else:
-        return "Lose"
-
-st.title("Can You Defeat the Computer?")
-st.markdown("Can You Identify the Algorithms Behind This Game? Try It First, Then Share Your Answer!")
+st.title("Beat the Market AI")
+st.write("Make Buy / Hold / Sell decisions in 60 seconds and try to profit. The market learns you.")
 
 if st.button("Start Game"):
     st.session_state.start_time = time.time()
-    st.session_state.moves = []
-    st.session_state.results = []
+    st.session_state.history = []
+    st.session_state.profit = 0
+    st.session_state.price = 100.0
 
 if st.session_state.start_time:
     elapsed = int(time.time() - st.session_state.start_time)
     remaining = max(0, 60 - elapsed)
-    st.write(f"Time Left: {remaining} seconds")
-
-    if remaining > 0 and len(st.session_state.moves) < 60:
+    st.write(f"Time Left: {remaining}s")
+    
+    if remaining > 0 and len(st.session_state.history) < 60:
         col1, col2, col3 = st.columns(3)
         with col1:
-            if st.button("Rock"):
-                ai = ai_decision()
-                res = result("rock", ai)
-                st.session_state.moves.append({"player": "rock", "ai": ai})
-                st.session_state.results.append(res)
+            if st.button("Buy"):
+                action = "buy"
         with col2:
-            if st.button("Paper"):
-                ai = ai_decision()
-                res = result("paper", ai)
-                st.session_state.moves.append({"player": "paper", "ai": ai})
-                st.session_state.results.append(res)
+            if st.button("Hold"):
+                action = "hold"
         with col3:
-            if st.button("Scissors"):
-                ai = ai_decision()
-                res = result("scissors", ai)
-                st.session_state.moves.append({"player": "scissors", "ai": ai})
-                st.session_state.results.append(res)
+            if st.button("Sell"):
+                action = "sell"
 
-        st.write(f"Rounds played: {len(st.session_state.moves)} / 60")
-    else:
-        st.success("Game Over!")
-        win_count = st.session_state.results.count("Win")
-        draw_count = st.session_state.results.count("Draw")
-        loss_count = st.session_state.results.count("Lose")
-        st.write(f"Wins: {win_count} | Losses: {loss_count} | Draws: {draw_count}")
+        if 'action' in locals():
+            rnn = st.session_state.rnn
+            gan = st.session_state.gan
+            engine = st.session_state.engine
+            price = st.session_state.price
+
+            signal = gan.generate_signal()
+            pred = rnn.predict_next_move(st.session_state.history)
+            price_change = engine.get_price_change(signal, pred, action)
+            st.session_state.price += price_change
+            st.session_state.profit += engine.get_profit(action, price_change)
+            st.session_state.history.append(action)
+            rnn.update(action)
+
+            st.write(f"Market Signal: {signal}")
