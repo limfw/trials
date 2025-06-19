@@ -232,16 +232,15 @@ else:
     ))
     fig.update_layout(height=500, xaxis_rangeslider_visible=False)
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("BUY LONG") and not st.session_state.game_state["position"]:
-            enter_position("long")
-    with col2:
-        if st.button("SELL SHORT") and not st.session_state.game_state["position"]:
-            enter_position("short")
-    with col3:
-        if st.button("CLOSE") and st.session_state.game_state["position"]:
-            close_position()
+    with st.container():
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col1:
+            st.button("BUY LONG", on_click=lambda: enter_position("long") if not st.session_state.game_state["position"] else None)
+        with col2:
+            st.button("SELL SHORT", on_click=lambda: enter_position("short") if not st.session_state.game_state["position"] else None)
+        with col3:
+            st.button("CLOSE", on_click=lambda: close_position() if st.session_state.game_state["position"] else None)
+
 
     if st.session_state.game_state["message"]:
         st.info(st.session_state.game_state["message"])
