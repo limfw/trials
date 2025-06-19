@@ -170,22 +170,28 @@ if "game_state" not in st.session_state:
     }
 
 # Game UI
-st.markdown("###Beat the Market AI — Outsmart the Manipulator", unsafe_allow_html=True)
+st.markdown("Biased Market Challenge — Outsmart the AI Manipulator Before It Breaks You!", unsafe_allow_html=True)
 
 if not st.session_state.game_state["started"]:
     st.markdown("""
-    **Instructions**:
-    - The market AI learns your behavior and tries to trap you.
-    - Try to make profits while avoiding AI traps.
-    - If you escape traps successfully, you win.
-
-    **AI Strategies**:
-    - Detects Buy/Sell/Alternating sequences.
-    - Biases market against your patterns.
-
-    **How to Win**:
-    - Finish with more successful escapes than traps.
-    """)
+    ### Instruction
+    
+    **Your Mission:**  
+    Defeat the **biased market AI**. It watches your trades, learns your patterns, and manipulates prices to trap you. Your goal is to **profit while staying unpredictable**.
+    
+    ---
+    
+    ** How the AI Thinks:**
+    - Detects your move: **Buy / Sell / Alternating**
+    - Adjusts the market bias to move **against your current position**
+    - The more obvious your pattern, the easier it traps you
+    
+    ---
+    
+    **How to Win:**
+    - You win if you escape **more traps than you fall into**
+    
+    """,unsafe_allow_html=True)
     if st.button("Start Game"):
         st.session_state.game_state.update({
             "started": True,
@@ -209,7 +215,6 @@ else:
         st.metric("Balance", f"${st.session_state.game_state['balance']:.2f}")
     with colC:
         st.metric("Trades", st.session_state.game_state["trade_count"])
-
 
     df = pd.DataFrame(st.session_state.game_state["history"][-20:])
     fig = go.Figure(go.Candlestick(
@@ -237,8 +242,6 @@ else:
     if st.session_state.game_state["message"]:
         st.info(st.session_state.game_state["message"])
         
-    #st.plotly_chart(fig, use_container_width=True)
-    # Chart placeholder to prevent layout shift
     chart_placeholder = st.empty()
     df = pd.DataFrame(st.session_state.game_state["history"][-20:])
     fig = go.Figure(go.Candlestick(
