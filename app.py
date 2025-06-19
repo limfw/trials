@@ -197,7 +197,22 @@ else:
         decreasing_line_color='red'
     ))
     fig.update_layout(height=500, xaxis_rangeslider_visible=False)
-    st.plotly_chart(fig, use_container_width=True)
+    #st.plotly_chart(fig, use_container_width=True)
+    # Chart placeholder to prevent layout shift
+    chart_placeholder = st.empty()
+    df = pd.DataFrame(st.session_state.game_state["history"][-20:])
+    fig = go.Figure(go.Candlestick(
+        x=df['time'],
+        open=df['open'],
+        high=df['high'],
+        low=df['low'],
+        close=df['close'],
+        increasing_line_color='green',
+        decreasing_line_color='red'
+    ))
+    fig.update_layout(height=500, title="📈 Live Market", xaxis_rangeslider_visible=False)
+    chart_placeholder.plotly_chart(fig, use_container_width=True)
+
 
     col1, col2, col3 = st.columns(3)
     with col1:
