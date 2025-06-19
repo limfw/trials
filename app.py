@@ -196,10 +196,11 @@ if not st.session_state.game_state["started"]:
 else:
     now = time.time()
     time_left = max(0, MAX_GAME_TIME - (now - st.session_state.game_state["start_time"]))
-    if now - st.session_state.game_state["last_candle_time"] >= CANDLE_INTERVAL:
-        new_candle = generate_adversarial_candle(st.session_state.game_state["history"][-1])
-        st.session_state.game_state["history"].append(new_candle)
-        st.session_state.game_state["last_candle_time"] = now
+    if not st.session_state.game_state.get("is_game_over", False):
+        if now - st.session_state.game_state["last_candle_time"] >= CANDLE_INTERVAL:
+            new_candle = generate_adversarial_candle(st.session_state.game_state["history"][-1])
+            st.session_state.game_state["history"].append(new_candle)
+            st.session_state.game_state["last_candle_time"] = now
 
     st.subheader(f"Time left: {int(time_left)}s")
     st.metric("Balance", f"${st.session_state.game_state['balance']:.2f}")
