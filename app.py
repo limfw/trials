@@ -10,7 +10,7 @@ from io import BytesIO
 import json
 
 # --- Title ---
-st.title("Rainfall and Wind Dashboard - Use Peninsular Malaysia & synthetic data as example")
+st.title("Rainfall and Wind Dashboard - Peninsular Malaysia")
 
 # --- Load Data ---
 @st.cache_data
@@ -46,7 +46,7 @@ wind_col = f"Wind_{selected_month}"
 agg_df = df[df['Year'] == selected_year].groupby("Region")[[rain_col, wind_col]].mean().reset_index()
 agg_df.rename(columns={rain_col: "Rainfall (mm)", wind_col: "Wind Speed (km/h)"}, inplace=True)
 
-# --- Region Mapping ---
+# --- Region Mapping (state name to region id) ---
 region_mapping = {
     "Perlis": 1, "Kedah": 1,
     "Terengganu": 2,
@@ -58,11 +58,11 @@ region_mapping = {
     "Johor": 8
 }
 
-# --- Prepare Data for Mapping ---
+# --- Build DataFrame for Map (state name to region with values) ---
 map_df = pd.DataFrame(region_mapping.items(), columns=["name", "Region"])
 map_df = map_df.merge(agg_df, on="Region", how="left")
 
-# --- Create Folium Map ---
+# --- Folium Map ---
 st.subheader(f"{selected_metric} Map - {selected_month} {selected_year}")
 map_center = [4.5, 102.0]
 m = folium.Map(location=map_center, zoom_start=6.2)
@@ -80,6 +80,21 @@ folium.Choropleth(
     legend_name=metric_col,
     nan_fill_color='white'
 ).add_to(m)
+
+# --- Add tooltip per state ---
+for _, row in map_df.iterrows():
+    tooltip = f"{row['name']}\n{metric_col}: {row[metric_col]:.2f}" if not pd.isna(row[metric_col]) else row['name']
+    folium.GeoJson(
+        geojson_data,
+        name=row['name'],
+        tooltip=folium.Tooltip(tooltip),
+        style_function=lambda feature: {
+            'fillColor': 'transparent',
+            'color': 'black',
+            'weight': 0.3,
+            'dashArray': '5, 5'
+        }
+    ).add_to(m)
 
 folium.LayerControl().add_to(m)
 folium_static(m)
