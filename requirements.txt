@@ -2,4 +2,5 @@ streamlit
 numpy
 pandas
 plotly
-streamlit-autorefresh
+geopandas
+folium
