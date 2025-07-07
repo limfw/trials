@@ -11,7 +11,7 @@ st.title("Rainfall and Wind Dashboard -(Simulated Data) illustration ")
 # --- Load Data ---
 @st.cache_data
 def load_data():
-    url = "https://raw.githubusercontent.com/limfw/smf/main/trials/data/output.csv"
+    url = "https://raw.githubusercontent.com/limfw/trials/main/data/output.csv"
     response = requests.get(url)
     if response.status_code != 200:
         st.error("Failed to load CSV from GitHub!")
