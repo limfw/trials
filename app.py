@@ -4,7 +4,7 @@ import folium
 import json
 from streamlit_folium import st_folium
 
-with open("my.json", "r", encoding="utf-8") as f:
+with open("https://github.com/limfw/trials/main/data/my.json", "r", encoding="utf-8") as f:
     geojson_data = json.load(f)
 
 
