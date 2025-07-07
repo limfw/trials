@@ -3,8 +3,10 @@ import pandas as pd
 import folium
 import json
 import requests
+import altair as alt
 from streamlit_folium import st_folium
 
+# --- Load GeoJSON from GitHub ---
 @st.cache_data
 def load_geojson():
     url = "https://raw.githubusercontent.com/limfw/trials/main/data/my.json"
@@ -14,6 +16,7 @@ def load_geojson():
         st.stop()
     geojson = response.json()
 
+    # Keep only Peninsular Malaysia states
     peninsular_states = [
         "Kedah", "Perlis", "Perak", "Selangor", "Terengganu", 
         "Kelantan", "Negeri Sembilan", "Melaka", "Johor"
@@ -26,6 +29,7 @@ def load_geojson():
 
 geojson_data = load_geojson()
 
+# --- Load Rainfall Data ---
 @st.cache_data
 def load_rainfall_data():
     url = "https://raw.githubusercontent.com/limfw/trials/main/data/output.csv"
@@ -35,29 +39,26 @@ def load_rainfall_data():
 
 rain_df = load_rainfall_data()
 
-month_options = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-selected_month = st.sidebar.selectbox("Select Month", month_options)
-selected_column = f"Rain_{selected_month}"
+# --- Select Year ---
+years = sorted(rain_df['Year'].unique())
+selected_year = st.sidebar.selectbox("Select Year", years)
+filtered_df = rain_df[rain_df['Year'] == selected_year]
 
-region_month = rain_df.groupby("Region")[selected_column].mean().reset_index()
-region_month.rename(columns={selected_column: "Rainfall"}, inplace=True)
+# --- Prepare Monthly Rainfall by Region ---
+month_cols = [f"Rain_{month}" for month in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                                              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']]
+rain_long = filtered_df.melt(id_vars=["Region"], value_vars=month_cols,
+                              var_name="Month", value_name="Rainfall")
+rain_long['Month'] = rain_long['Month'].str.replace("Rain_", "")
 
-m = folium.Map(location=[4.5, 102], zoom_start=6)
+# --- Line Chart ---
+st.title("🌧️ Monthly Rainfall (Peninsular Malaysia) - Line Chart")
+st.write(f"Rainfall across regions for year {selected_year} (synthetic data)")
 
-folium.Choropleth(
-    geo_data=geojson_data,
-    data=region_month,
-    columns=["Region", "Rainfall"],
-    key_on="feature.properties.name",
-    fill_color="PuBu",
-    fill_opacity=0.7,
-    line_opacity=0.3,
-    legend_name=f"Rainfall in {selected_month} (mm)",
-    nan_fill_color="white",
-    highlight=True
-).add_to(m)
+chart = alt.Chart(rain_long).mark_line(point=True).encode(
+    x=alt.X('Month', sort=month_cols, title='Month'),
+    y=alt.Y('Rainfall', title='Rainfall (mm)'),
+    color='Region'
+).properties(width=800, height=400)
 
-st.title("🌧️ Rainfall Dashboard (Peninsular Malaysia Only)")
-st.write(f"Rainfall for {selected_month} across selected states (synthetic data)")
-st_folium(m, width=800, height=500)
+st.altair_chart(chart, use_container_width=True)
