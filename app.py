@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import altair as alt
+import requests
+from io import BytesIO
 
 # --- Title ---
 st.title("Rainfall and Wind Dashboard -(Simulated Data) illustration ")
@@ -9,15 +11,16 @@ st.title("Rainfall and Wind Dashboard -(Simulated Data) illustration ")
 # --- Load Data ---
 @st.cache_data
 def load_data():
-    import requests
-    from io import BytesIO
-
     url = "https://raw.githubusercontent.com/limfw/smf/main/data/output.csv"
     response = requests.get(url)
+    if response.status_code != 200:
+        st.error("Failed to load CSV from GitHub!")
+        st.stop()
     df = pd.read_csv(BytesIO(response.content))
     return df
 
 df = load_data()
+st.write("Loaded columns:", df.columns.tolist())
 
 # --- Sidebar Filters ---
 st.sidebar.header("Filter Options")
