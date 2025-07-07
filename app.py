@@ -14,9 +14,9 @@ def load_data():
 
     # Load private file from GitHub using token
     url = "https://raw.githubusercontent.com/limfw/smf/main/data/output.csv"
-    headers = {"Authorization": f"token {st.secrets['github']['token']}"}
+    # no auth needed for public repo"}
     response = requests.get(url, headers=headers)
-    df = pd.read_excel(BytesIO(response.content))
+    df = pd.read_csv(BytesIO(response.content))
     return df
 
 df = load_data()
@@ -57,7 +57,7 @@ with col2:
     ).properties(width=350, height=300, title="Wind Speed Intensity")
     st.altair_chart(chart_wind)
 
-# --- Optional: Show Raw Data per Region ---
+#Show Raw Data per Region ---
 #st.subheader("Company-Level Performance")
 #filtered_df = df[(df['Year'] == selected_year)][['Region', 'Company', 'Efficiency', rain_col, wind_col]]
 #filtered_df.columns = ['Region', 'Company', 'Efficiency Score', 'Rainfall (mm)', 'Wind Speed (km/h)']
