@@ -84,3 +84,13 @@ folium.Choropleth(
 ).add_to(m)
 
 st_folium(m, width=800, height=500)
+
+# --- Top & Bottom 5 Companies by Efficiency ---
+top5 = filtered_df.sort_values(by="Efficiency", ascending=False).head(5)[["Company", "Region", "Efficiency"]]
+bottom5 = filtered_df.sort_values(by="Efficiency", ascending=True).head(5)[["Company", "Region", "Efficiency"]]
+
+st.subheader("Top 5 Companies by Efficiency")
+st.dataframe(top5.style.format({"Efficiency": "{:.2f}"}), use_container_width=True)
+
+st.subheader("Least 5 Companies by Efficiency")
+st.dataframe(bottom5.style.format({"Efficiency": "{:.2f}"}), use_container_width=True)
