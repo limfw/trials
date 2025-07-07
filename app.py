@@ -12,10 +12,8 @@ def load_data():
     import requests
     from io import BytesIO
 
-    # Load private file from GitHub using token
     url = "https://raw.githubusercontent.com/limfw/smf/main/data/output.csv"
-    # no auth needed for public repo"}
-    response = requests.get(url, headers=headers)
+    response = requests.get(url)
     df = pd.read_csv(BytesIO(response.content))
     return df
 
