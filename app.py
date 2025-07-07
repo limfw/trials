@@ -10,7 +10,7 @@ from io import BytesIO
 import json
 
 # --- Title ---
-st.title("Rainfall and Wind Dashboard - Peninsular Malaysia")
+st.title("Rainfall and Wind Dashboard - Use Peninsular Malaysia and syntetics data as example")
 
 # --- Load Data ---
 @st.cache_data
