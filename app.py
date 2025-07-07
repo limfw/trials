@@ -26,6 +26,8 @@ def load_geojson():
     ]
     return geojson
 
+debug_geojson_names = sorted([f["properties"]["name"] for f in load_geojson()["features"]])
+
 geojson_data = load_geojson()
 
 # --- Load Rainfall Data ---
@@ -37,6 +39,24 @@ def load_rainfall_data():
     return df
 
 rain_df = load_rainfall_data()
+
+# --- Region Mapping ---
+region_mapping = {
+    "Region 1": "Perlis",
+    "Region 2": "Terengganu",
+    "Region 3": "Kelantan",
+    "Region 4": "Perak",
+    "Region 5": "Selangor",
+    "Region 6": "Negeri Sembilan",
+    "Region 7": "Melaka",
+    "Region 8": "Johor"
+}
+rain_df["Region"] = rain_df["Region"].map(region_mapping)
+
+# --- Debug Check ---
+st.subheader("🔍 Debug: Region Matching")
+st.write("GeoJSON Regions:", debug_geojson_names)
+st.write("CSV Regions:", sorted(rain_df["Region"].dropna().unique().tolist()))
 
 # --- Select Year ---
 years = sorted(rain_df['Year'].unique())
