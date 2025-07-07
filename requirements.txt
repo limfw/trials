@@ -1,6 +1,7 @@
 streamlit
-numpy
 pandas
-plotly
-geopandas
+numpy
+altair
 folium
+streamlit-folium
+geopandas
