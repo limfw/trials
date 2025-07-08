@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import folium
-import json
 import requests
 import plotly.graph_objects as go
 from streamlit_folium import st_folium
@@ -53,26 +52,33 @@ region_mapping = {
 }
 rain_df["Region"] = rain_df["Region"].map(region_mapping)
 
-# --- Year and Month Selection ---
-years = sorted(rain_df['Year'].unique())
-selected_year = st.sidebar.selectbox("Select Year", years)
-filtered_df = rain_df[rain_df['Year'] == selected_year]
+# --- Inline Filters ---
+st.title("🌧️ Rainfall & 🌬️ Wind Map with Operator Gauges (Malaysia Demo)")
 
-months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-month_slider = st.sidebar.slider("Select Month (1=Jan ... 12=Dec)", 1, 12, 1)
-selected_month = months[month_slider - 1]
-selected_column = f"Rain_{selected_month}"
+col_y1, col_m1, col_o1 = st.columns([1, 2, 4])
 
+with col_y1:
+    selected_year = st.selectbox("Select Year", sorted(rain_df['Year'].unique()))
+
+with col_m1:
+    months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+              'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    month_slider = st.slider("Select Month (1=Jan ... 12=Dec)", 1, 12, 1)
+    selected_month = months[month_slider - 1]
+    selected_column = f"Rain_{selected_month}"
+
+with col_o1:
+    all_operators = sorted(rain_df['Company'].unique())
+    selected_operators = st.multiselect("Select Operators", all_operators, default=all_operators)
+
+# --- Filter Data ---
+filtered_df = rain_df[(rain_df['Year'] == selected_year) & (rain_df['Company'].isin(selected_operators))].copy()
 region_month = filtered_df[['Region', selected_column]].rename(columns={selected_column: "Rainfall"})
 
-# --- Title ---
-st.title("🌧️ Rainfall and 🌬️ Wind Map with Operator Performance (Synthetic Data)")
-
-# --- Side-by-side Maps ---
+# --- Two Maps Side by Side ---
 col1, col2 = st.columns(2)
 
-# Left: Rain Map
+# --- Rainfall Map ---
 with col1:
     st.subheader(f"Rainfall Map - {selected_month} {selected_year}")
     m1 = folium.Map(location=[4.5, 102], zoom_start=6)
@@ -90,11 +96,10 @@ with col1:
     ).add_to(m1)
     st_folium(m1, width=600, height=500)
 
-# Right: Wind Map (Fake Wind Index from 20 to 80)
+# --- Wind Map (Fake Intensity) ---
 with col2:
     st.subheader("Wind Intensity Map (Synthetic)")
-    # Fake wind data just for placeholder visualization
-    filtered_df["WindIndex"] = 20 + (filtered_df["Efficiency"] % 60)
+    filtered_df["WindIndex"] = 20 + (filtered_df["Efficiency"] * 80)  # Scale up for display
     wind_data = filtered_df[['Region', 'WindIndex']]
 
     m2 = folium.Map(location=[4.5, 102], zoom_start=6)
@@ -112,28 +117,32 @@ with col2:
     ).add_to(m2)
     st_folium(m2, width=600, height=500)
 
-# --- Operator Efficiency Gauges ---
+# --- Gauges for Operator Performance ---
 st.markdown("---")
-st.subheader("🛠️ Operator Performance Gauges (0–100 Efficiency)")
+st.subheader("🔧 Operator Efficiency Gauges (0–100%)")
 
-# Top 10 Companies by Efficiency
-top10 = filtered_df.sort_values(by="Efficiency", ascending=False).head(10)
-cols = st.columns(10)
+if filtered_df.empty:
+    st.warning("⚠️ No data available for the selected filters.")
+else:
+    filtered_df["EfficiencyPct"] = (filtered_df["Efficiency"] * 100).clip(0, 100)
+    top10 = filtered_df.sort_values(by="EfficiencyPct", ascending=False).head(10)
 
-for i, row in enumerate(top10.itertuples()):
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=row.Efficiency,
-        title={'text': row.Company},
-        gauge={
-            'axis': {'range': [0, 100]},
-            'bar': {'color': "darkblue"},
-            'steps': [
-                {'range': [0, 40], 'color': "red"},
-                {'range': [40, 70], 'color': "yellow"},
-                {'range': [70, 100], 'color': "green"}
-            ]
-        }
-    ))
-    fig.update_layout(height=250, margin=dict(t=20, b=20, l=5, r=5))
-    cols[i].plotly_chart(fig, use_container_width=True)
+    cols = st.columns(10)
+    for i, row in enumerate(top10.itertuples()):
+        fig = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=row.EfficiencyPct,
+            title={'text': row.Company},
+            number={'suffix': '%'},
+            gauge={
+                'axis': {'range': [0, 100]},
+                'bar': {'color': "darkblue"},
+                'steps': [
+                    {'range': [0, 40], 'color': "red"},
+                    {'range': [40, 70], 'color': "yellow"},
+                    {'range': [70, 100], 'color': "green"}
+                ]
+            }
+        ))
+        fig.update_layout(height=250, margin=dict(t=20, b=20, l=5, r=5))
+        cols[i].plotly_chart(fig, use_container_width=True)
