@@ -118,6 +118,7 @@ with col2:
     st_folium(m2, width=600, height=500)
 
 # --- Gauges for Operator Performance ---
+# --- Gauges for Operator Performance ---
 st.markdown("---")
 st.subheader("🔧 Operator Efficiency Gauges (0–100%)")
 
@@ -129,20 +130,33 @@ else:
 
     cols = st.columns(10)
     for i, row in enumerate(top10.itertuples()):
+        # Label top 5 vs bottom 5
+        rank_label = f"Top {i+1}" if i < 5 else f"Bottom {i+1}"
+
         fig = go.Figure(go.Indicator(
             mode="gauge+number",
             value=row.EfficiencyPct,
-            title={'text': row.Company},
-            number={'suffix': '%'},
+            title={'text': f"{rank_label}<br>{row.Company}", 'font': {'size': 12}},
+            number={'suffix': '%', 'font': {'size': 16}},
             gauge={
                 'axis': {'range': [0, 100]},
-                'bar': {'color': "darkblue"},
+                'bar': {'color': "#4682B4"},  # Softer blue
                 'steps': [
-                    {'range': [0, 40], 'color': "red"},
-                    {'range': [40, 70], 'color': "yellow"},
-                    {'range': [70, 100], 'color': "green"}
-                ]
+                    {'range': [0, 40], 'color': '#F08080'},    # Light red
+                    {'range': [40, 70], 'color': '#FFD580'},   # Soft yellow
+                    {'range': [70, 100], 'color': '#B0E57C'}   # Light green
+                ],
+                'threshold': {
+                    'line': {'color': "black", 'width': 2},
+                    'thickness': 0.75,
+                    'value': row.EfficiencyPct
+                }
             }
         ))
-        fig.update_layout(height=250, margin=dict(t=20, b=20, l=5, r=5))
+
+        fig.update_layout(
+            height=250,
+            margin=dict(t=20, b=20, l=5, r=5),
+            paper_bgcolor="#F8F8F8"  # soft background
+        )
         cols[i].plotly_chart(fig, use_container_width=True)
