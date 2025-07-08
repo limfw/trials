@@ -118,6 +118,7 @@ with col2:
     st_folium(m2, width=600, height=500)
 
 # --- Gauges for Operator Performance ---
+# --- Gauges for Operator Performance ---
 st.markdown("---")
 st.subheader("🔧 Operator Efficiency Gauges (0–100%)")
 
@@ -127,17 +128,18 @@ else:
     filtered_df["EfficiencyPct"] = (filtered_df["Efficiency"] * 100).clip(0, 100)
     sorted_df = filtered_df.sort_values(by="EfficiencyPct", ascending=False)
 
+    # Top 5 and Bottom 5
     top5 = sorted_df.head(5)
     bottom5 = sorted_df.tail(5).sort_values(by="EfficiencyPct", ascending=False)
 
-    # --- Top 5 Gauges ---
+    # 🔼 Top 5 Gauges
     st.markdown("### 🔼 Top 5 Operators")
     top_cols = st.columns(5)
     for i, row in enumerate(top5.itertuples()):
         fig = go.Figure(go.Indicator(
             mode="gauge+number",
             value=row.EfficiencyPct,
-            title={'text': f"Top {i+1}<br>{row.Company}", 'font': {'size': 12}},
+            title={'text': f"Top {i+1}<br>{row.Company}<br>({row.Region})", 'font': {'size': 12}},
             number={'suffix': '%', 'font': {'size': 16}},
             gauge={
                 'axis': {'range': [0, 100]},
@@ -157,14 +159,14 @@ else:
         fig.update_layout(height=250, margin=dict(t=20, b=20, l=5, r=5), paper_bgcolor="#F8F8F8")
         top_cols[i].plotly_chart(fig, use_container_width=True)
 
-    # --- Bottom 5 Gauges ---
+    # 🔽 Bottom 5 Gauges
     st.markdown("### 🔽 Bottom 5 Operators")
     bottom_cols = st.columns(5)
     for i, row in enumerate(bottom5.itertuples(), start=6):
         fig = go.Figure(go.Indicator(
             mode="gauge+number",
             value=row.EfficiencyPct,
-            title={'text': f"Bottom {i}<br>{row.Company}", 'font': {'size': 12}},
+            title={'text': f"Bottom {i}<br>{row.Company}<br>({row.Region})", 'font': {'size': 12}},
             number={'suffix': '%', 'font': {'size': 16}},
             gauge={
                 'axis': {'range': [0, 100]},
