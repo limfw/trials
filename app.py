@@ -81,7 +81,7 @@ col1, col2 = st.columns(2)
 # --- Rainfall Map ---
 with col1:
     st.subheader(f"Rainfall Map - {selected_month} {selected_year}")
-    m1 = folium.Map(location=[4.5, 102], zoom_start=6)
+    m1 = folium.Map(location=[4.5, 102], zoom_start=6, tiles="CartoDB positron")
     folium.Choropleth(
         geo_data=geojson_data,
         data=region_month,
@@ -102,7 +102,7 @@ with col2:
     filtered_df["WindIndex"] = 20 + (filtered_df["Efficiency"] * 80)  # Scale up for display
     wind_data = filtered_df[['Region', 'WindIndex']]
 
-    m2 = folium.Map(location=[4.5, 102], zoom_start=6)
+    m2 = folium.Map(location=[4.5, 102], zoom_start=6, tiles="CartoDB positron")
     folium.Choropleth(
         geo_data=geojson_data,
         data=wind_data,
@@ -118,7 +118,6 @@ with col2:
     st_folium(m2, width=600, height=500)
 
 # --- Gauges for Operator Performance ---
-# --- Gauges for Operator Performance ---
 st.markdown("---")
 st.subheader("🔧 Operator Efficiency Gauges (0–100%)")
 
@@ -130,9 +129,7 @@ else:
 
     cols = st.columns(10)
     for i, row in enumerate(top10.itertuples()):
-        # Label top 5 vs bottom 5
         rank_label = f"Top {i+1}" if i < 5 else f"Bottom {i+1}"
-
         fig = go.Figure(go.Indicator(
             mode="gauge+number",
             value=row.EfficiencyPct,
@@ -140,7 +137,7 @@ else:
             number={'suffix': '%', 'font': {'size': 16}},
             gauge={
                 'axis': {'range': [0, 100]},
-                'bar': {'color': "#4682B4"},  # Softer blue
+                'bar': {'color': "#4682B4"},
                 'steps': [
                     {'range': [0, 40], 'color': '#F08080'},    # Light red
                     {'range': [40, 70], 'color': '#FFD580'},   # Soft yellow
@@ -153,10 +150,9 @@ else:
                 }
             }
         ))
-
         fig.update_layout(
             height=250,
             margin=dict(t=20, b=20, l=5, r=5),
-            paper_bgcolor="#F8F8F8"  # soft background
+            paper_bgcolor="#F8F8F8"
         )
         cols[i].plotly_chart(fig, use_container_width=True)
