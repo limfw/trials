@@ -125,23 +125,27 @@ if filtered_df.empty:
     st.warning("⚠️ No data available for the selected filters.")
 else:
     filtered_df["EfficiencyPct"] = (filtered_df["Efficiency"] * 100).clip(0, 100)
-    top10 = filtered_df.sort_values(by="EfficiencyPct", ascending=False).head(10)
+    sorted_df = filtered_df.sort_values(by="EfficiencyPct", ascending=False)
 
-    cols = st.columns(10)
-    for i, row in enumerate(top10.itertuples()):
-        rank_label = f"Top {i+1}" if i < 5 else f"Bottom {i+1}"
+    top5 = sorted_df.head(5)
+    bottom5 = sorted_df.tail(5).sort_values(by="EfficiencyPct", ascending=False)
+
+    # --- Top 5 Gauges ---
+    st.markdown("### 🔼 Top 5 Operators")
+    top_cols = st.columns(5)
+    for i, row in enumerate(top5.itertuples()):
         fig = go.Figure(go.Indicator(
             mode="gauge+number",
             value=row.EfficiencyPct,
-            title={'text': f"{rank_label}<br>{row.Company}", 'font': {'size': 12}},
+            title={'text': f"Top {i+1}<br>{row.Company}", 'font': {'size': 12}},
             number={'suffix': '%', 'font': {'size': 16}},
             gauge={
                 'axis': {'range': [0, 100]},
                 'bar': {'color': "#4682B4"},
                 'steps': [
-                    {'range': [0, 40], 'color': '#F08080'},    # Light red
-                    {'range': [40, 70], 'color': '#FFD580'},   # Soft yellow
-                    {'range': [70, 100], 'color': '#B0E57C'}   # Light green
+                    {'range': [0, 40], 'color': '#F08080'},
+                    {'range': [40, 70], 'color': '#FFD580'},
+                    {'range': [70, 100], 'color': '#B0E57C'}
                 ],
                 'threshold': {
                     'line': {'color': "black", 'width': 2},
@@ -150,9 +154,32 @@ else:
                 }
             }
         ))
-        fig.update_layout(
-            height=250,
-            margin=dict(t=20, b=20, l=5, r=5),
-            paper_bgcolor="#F8F8F8"
-        )
-        cols[i].plotly_chart(fig, use_container_width=True)
+        fig.update_layout(height=250, margin=dict(t=20, b=20, l=5, r=5), paper_bgcolor="#F8F8F8")
+        top_cols[i].plotly_chart(fig, use_container_width=True)
+
+    # --- Bottom 5 Gauges ---
+    st.markdown("### 🔽 Bottom 5 Operators")
+    bottom_cols = st.columns(5)
+    for i, row in enumerate(bottom5.itertuples(), start=6):
+        fig = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=row.EfficiencyPct,
+            title={'text': f"Bottom {i}<br>{row.Company}", 'font': {'size': 12}},
+            number={'suffix': '%', 'font': {'size': 16}},
+            gauge={
+                'axis': {'range': [0, 100]},
+                'bar': {'color': "#4682B4"},
+                'steps': [
+                    {'range': [0, 40], 'color': '#F08080'},
+                    {'range': [40, 70], 'color': '#FFD580'},
+                    {'range': [70, 100], 'color': '#B0E57C'}
+                ],
+                'threshold': {
+                    'line': {'color': "black", 'width': 2},
+                    'thickness': 0.75,
+                    'value': row.EfficiencyPct
+                }
+            }
+        ))
+        fig.update_layout(height=250, margin=dict(t=20, b=20, l=5, r=5), paper_bgcolor="#F8F8F8")
+        bottom_cols[i - 6].plotly_chart(fig, use_container_width=True)
